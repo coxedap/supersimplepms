@@ -1,0 +1,20 @@
+export type Role = 'CONTRIBUTOR' | 'TEAM_LEAD' | 'MANAGER' | 'ADMIN';
+
+export interface UserProps {
+  id: string;
+  name: string;
+  role: Role;
+  teamId?: string;
+  team?: string;
+  status: string;
+  wipLimit: number;
+  p1Limit: number;
+}
+
+export class User {
+  constructor(private readonly props: UserProps) {}
+
+  public getProps(): UserProps {
+    return { ...this.props };
+  }
+}
