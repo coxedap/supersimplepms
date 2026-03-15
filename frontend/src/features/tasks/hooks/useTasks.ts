@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
+import { useToastStore } from '../../../store/useToastStore';
 import { Task, TaskStatus, Priority } from '../types';
 
 export const taskKeys = {
@@ -28,6 +29,9 @@ export function useUpdateTaskStatus() {
     mutationFn: async ({ id, status, reason }: { id: string; status: TaskStatus; reason?: string }) => {
       const { data } = await api.patch<Task>(`/tasks/${id}/status`, { status, reason });
       return data;
+    },
+    onSuccess: () => {
+      useToastStore.getState().addToast('Task status updated successfully', 'success');
     },
     onMutate: async ({ id, status }) => {
       await queryClient.cancelQueries({ queryKey: taskKeys.all });
@@ -63,6 +67,7 @@ export function useUpdateTask() {
       return updatedTask;
     },
     onSuccess: (updatedTask) => {
+      useToastStore.getState().addToast('Task updated successfully', 'success');
       // Optimistic update if we have the list
       queryClient.setQueriesData<Task[]>(
         { queryKey: taskKeys.all },
@@ -82,6 +87,9 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: async ({ id, requesterId }: { id: string; requesterId: string }) => {
       await api.delete(`/tasks/${id}`, { data: { requesterId } });
+    },
+    onSuccess: () => {
+      useToastStore.getState().addToast('Task deleted successfully', 'success');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
@@ -106,6 +114,9 @@ export function useCreateTask() {
     }) => {
       const { data } = await api.post<Task>('/tasks', newTask);
       return data;
+    },
+    onSuccess: () => {
+      useToastStore.getState().addToast('Task created successfully', 'success');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });

@@ -2,6 +2,7 @@ import { Task, TaskProps, TaskStatus, Priority } from "../domain/task.entity";
 import { CreateTaskDTO, TaskRepository, TaskService, UpdateTaskDTO } from "./task.service.interface";
 import { DomainError, NotFoundError, ValidationError } from "../../../shared/errors/base.errors";
 import { SystemService } from "../../system/application/system.service";
+import crypto from 'crypto';
 
 export class TaskServiceImpl implements TaskService {
   constructor(

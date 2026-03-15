@@ -64,19 +64,18 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, isOpen, onCl
     if (!currentUser) return;
 
     updateTask(
-      { 
+      {
         id: task.id,
         data: {
-          ...formData, 
+          ...formData,
           requesterId: currentUser.id,
           projectId: formData.projectId || undefined,
-          estimatedEffort: Number(formData.estimatedEffort) 
+          estimatedEffort: Number(formData.estimatedEffort)
         }
       },
       {
         onSuccess: () => {
-          // Task updated successfully
-          // We no longer auto-close here per user request
+          onClose();
         },
       }
     );

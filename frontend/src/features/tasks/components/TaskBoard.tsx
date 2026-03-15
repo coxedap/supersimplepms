@@ -34,7 +34,7 @@ export const TaskBoard: React.FC<{ userId: string }> = ({ userId }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-screen bg-gray-50 p-6 rounded-xl border border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 min-h-screen bg-gray-50 p-2 rounded-xl border border-gray-200">
       {columns.map((column) => (
         <div key={column.title} className="flex flex-col h-full">
           <div className="flex justify-between items-center mb-4 px-2">

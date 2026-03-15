@@ -1,5 +1,6 @@
 import { PrismaClient, TaskStatus } from "@prisma/client";
 import { Request, Response } from "express";
+import { SystemService } from "../../system/application/system.service";
 
 export interface RiskLevel {
   level: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -32,7 +33,10 @@ export interface TeamDashboardData {
 }
 
 export class DashboardService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly systemService: SystemService
+  ) {}
 
   private calculateRisk(task: any): RiskLevel {
     const now = new Date();
@@ -51,7 +55,7 @@ export class DashboardService {
       where: { ownerId: userId, status: { not: 'DONE' } },
     });
 
-    const wipLimit = 3; // Should come from system config
+    const wipLimit = await this.systemService.getNumberConfig('WIP_LIMIT_PER_USER', 3);
 
     const tasksWithRisk = tasks.map(t => ({
       ...t,
@@ -70,7 +74,6 @@ export class DashboardService {
 
   public async getTeamDashboard(): Promise<TeamDashboardData> {
     const tasks = await this.prisma.task.findMany({
-      where: { status: { not: 'DONE' } },
       include: { owner: true, project: true } as any
     });
 
@@ -92,7 +95,8 @@ export class DashboardService {
       ownerData.tasks.push({ id: t.id, title: t.title, deadline: t.deadline });
     });
 
-    // Find overloaded users (WIP >= 3)
+    // Find overloaded users (WIP >= limit)
+    const wipLimit = await this.systemService.getNumberConfig('WIP_LIMIT_PER_USER', 3);
     const userWipMap = new Map();
     tasks.filter((t: any) => t.status === 'DOING').forEach((t: any) => {
       userWipMap.set(t.ownerId, (userWipMap.get(t.ownerId) || 0) + 1);
@@ -100,18 +104,18 @@ export class DashboardService {
 
     const overloadedUsers = [];
     for (const [userId, count] of userWipMap.entries()) {
-      if (count >= 3) {
+      if (count >= wipLimit) {
         const taskWithUser = tasks.find(t => t.ownerId === userId) as any;
         const user = taskWithUser?.owner;
-        if (user) overloadedUsers.push({ id: user.id, name: user.name, wipCount: count, limit: 3 });
+        if (user) overloadedUsers.push({ id: user.id, name: user.name, wipCount: count, limit: wipLimit });
       }
     }
 
     // Project Health
     const projectMap = new Map();
-    const projects = await (this.prisma as any).project.findMany({ where: { status: 'active' } });
+    const activeProjects = await this.prisma.project.findMany({ where: { status: 'active' } });
     
-    projects.forEach((p: any) => {
+    activeProjects.forEach((p: any) => {
       projectMap.set(p.id, {
         id: p.id,
         name: p.name,

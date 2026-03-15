@@ -53,15 +53,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
     if (!currentUser) return;
 
     createTask(
-      { 
-        ...formData, 
+      {
+        ...formData,
         creatorId: currentUser.id,
         projectId: formData.projectId || undefined,
-        estimatedEffort: Number(formData.estimatedEffort) 
+        estimatedEffort: Number(formData.estimatedEffort)
       },
       {
         onSuccess: () => {
-          // Success but don't close automatically
+          onClose();
           setFormData({
             title: '',
             description: '',

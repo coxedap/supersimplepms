@@ -6,11 +6,23 @@ import { EditTaskModal } from './EditTaskModal';
 import { Modal } from '../../../components/Modal';
 import { TaskCard } from './TaskCard';
 
+import { CheckCircle2, Play, Ban } from 'lucide-react';
+
 interface TaskItemProps {
   task: Task;
+  ownerName?: string;
+  projectName?: string;
+  risk?: { level: string; reason?: string };
+  onClick?: () => void;
 }
 
-export const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
+export const TaskItem: React.FC<TaskItemProps> = ({
+  task,
+  ownerName,
+  projectName,
+  risk,
+  onClick
+}) => {
   const { user } = useAuthStore();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -45,47 +57,42 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
 
   const transitions = getAvailableTransitions(task.status);
 
-  const headerActions = (user?.role === 'ADMIN' || user?.role === 'MANAGER') ? (
-    <div className="hidden group-hover:flex space-x-1 pr-2 border-r border-gray-100">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsEditModalOpen(true);
-        }}
-        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-        title="Edit"
-      >
-        ✎
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleDelete();
-        }}
-        disabled={isDeleting}
-        className="p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
-        title="Delete"
-      >
-        🗑
-      </button>
-    </div>
-  ) : null;
-
   const footerActions = (
-    <div className="flex space-x-2">
-      {transitions.map(status => (
-        <button
-          key={status}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleStatusChange(status);
-          }}
-          disabled={isUpdatingStatus}
-          className="px-3 py-1 text-xs font-medium bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 rounded transition-colors disabled:opacity-50"
-        >
-          Move to {status.toLowerCase()}
-        </button>
-      ))}
+    <div className="flex items-center gap-1.5">
+      {transitions.map(status => {
+        let icon;
+        let colorClass = "";
+        let label = "";
+        
+        if (status === 'DONE') {
+          icon = <CheckCircle2 className="w-3.5 h-3.5" />;
+          colorClass = "text-emerald-600 hover:bg-emerald-50 border-emerald-100 hover:border-emerald-200";
+          label = "Done";
+        } else if (status === 'DOING') {
+          icon = <Play className="w-3.5 h-3.5" />;
+          colorClass = "text-blue-600 hover:bg-blue-50 border-blue-100 hover:border-blue-200";
+          label = "Start";
+        } else if (status === 'BLOCKED') {
+          icon = <Ban className="w-3.5 h-3.5" />;
+          colorClass = "text-amber-600 hover:bg-amber-50 border-amber-100 hover:border-amber-200";
+          label = "Block";
+        }
+        
+        return (
+          <button
+            key={status}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusChange(status);
+            }}
+            disabled={isUpdatingStatus}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50 ${colorClass}`}
+          >
+            {icon}
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -93,18 +100,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
     <>
       <TaskCard
         task={task}
-        onClick={() => setIsDetailsOpen(true)}
-        headerActions={headerActions}
+        ownerName={ownerName}
+        projectName={projectName}
+        risk={risk}
+        onClick={onClick ? onClick : () => setIsDetailsOpen(true)}
         footerActions={footerActions}
       />
-
-      {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
-        <EditTaskModal
-          task={task}
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-        />
-      )}
 
       <Modal 
         isOpen={isDetailsOpen} 
@@ -112,12 +113,31 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
         title="Task Details"
         maxWidthClassName="max-w-2xl"
         footer={
-          <button
-            onClick={() => setIsDetailsOpen(false)}
-            className="px-8 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-black transition-all active:scale-95"
-          >
-            Close
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsDetailsOpen(false)}
+              className="px-8 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-black transition-all active:scale-95"
+            >
+              Close
+            </button>
+            {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+              <>
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black shadow-lg shadow-blue-200 transition-all active:scale-95"
+                >
+                  Edit Task
+                </button>
+                <button
+                  onClick={() => handleDelete()}
+                  disabled={isDeleting}
+                  className="px-8 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
+                >
+                  Delete Task
+                </button>
+              </>
+            )}
+          </div>
         }
       >
         <div className="space-y-8">
@@ -197,6 +217,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
           )}
         </div>
       </Modal>
+
+      {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+        <EditTaskModal
+          task={task}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
     </>
   );
 };

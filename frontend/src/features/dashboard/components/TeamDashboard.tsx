@@ -3,7 +3,7 @@ import { useTeamDashboard, TeamTask } from '../hooks/useTeamDashboard';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { EditTaskModal } from '../../tasks/components/EditTaskModal';
 import { Modal } from '../../../components/Modal';
-import { TaskCard } from '../../tasks/components/TaskCard';
+import { TaskItem } from '../../tasks/components/TaskItem';
 
 export const TeamDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -165,7 +165,7 @@ export const TeamDashboard: React.FC = () => {
                 {data?.allTeamTasks
                   .filter(t => col.status.includes(t.status))
                   .map((task) => (
-                    <TaskCard
+                    <TaskItem
                       key={task.id}
                       task={task}
                       ownerName={task.ownerName}

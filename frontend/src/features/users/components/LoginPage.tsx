@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
-import { useAuthStore } from '../../../store/useAuthStore';
+import { useAuthStore, Role } from '../../../store/useAuthStore';
+import { useToastStore } from '../../../store/useToastStore';
 
 interface User {
   id: string;
   name: string;
-  role: string;
+  role: Role;
   team: string;
   wipLimit: number;
 }
@@ -38,8 +39,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
     try {
       const { data } = await api.post<User>('/auth/login', { userId });
       login(data);
+      useToastStore.getState().addToast(`Welcome back, ${data.name}!`, 'success');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed.');
+      // Handled by global interceptor.
     }
   };
 
@@ -77,7 +79,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
               <div className="grid gap-3">
                 {users.length === 0 ? (
                   <p className="text-sm text-gray-400 italic text-center py-4">
-                    No users found in database. <br/> Run seeds first.
+                    No users found in database. <br /> Run seeds first.
                   </p>
                 ) : (
                   users.map((user) => (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../../../lib/api';
-import { useAuthStore } from '../../../store/useAuthStore';
+import { useAuthStore, Role } from '../../../store/useAuthStore';
+import { useToastStore } from '../../../store/useToastStore';
 
 interface RegisterPageProps {
   onBackToLogin: () => void;
@@ -9,23 +10,22 @@ interface RegisterPageProps {
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToLogin }) => {
   const [formData, setFormData] = useState({
     name: '',
-    team: '',
-    role: 'USER',
+    teamName: '',
+    role: 'CONTRIBUTOR' as Role,
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const login = useAuthStore((state) => state.login);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
     try {
       const { data } = await api.post('/auth/register', formData);
       login(data);
+      useToastStore.getState().addToast(`Welcome to the team, ${data.name}!`, 'success');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed.');
+      // Handled by global interceptor
     } finally {
       setIsLoading(false);
     }
@@ -48,12 +48,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToLogin }) => 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-xl sm:px-10 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600 font-medium">
-                {error}
-              </div>
-            )}
-
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">
                 Full Name
@@ -77,8 +71,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToLogin }) => 
                 type="text"
                 placeholder="e.g. Engineering, Sales"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                value={formData.team}
-                onChange={(e) => setFormData({ ...formData, team: e.target.value })}
+                value={formData.teamName}
+                onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
               />
             </div>
 
@@ -89,9 +83,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToLogin }) => 
               <select
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
               >
-                <option value="USER">Standard User</option>
+                <option value="CONTRIBUTOR">Contributor</option>
+                <option value="TEAM_LEAD">Team Lead</option>
                 <option value="MANAGER">Manager</option>
                 <option value="ADMIN">Administrator</option>
               </select>
