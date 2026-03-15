@@ -59,6 +59,15 @@ export class MetricsService {
     // For now, we'll return 0 or calculate based on the current implementation
     const blockedTimeRatio = 0; 
 
+    // Verify user exists before upserting
+    const userExists = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!userExists) {
+      throw new Error('UNAUTHENTICATED'); // Will be caught by middleware to redirect to login
+    }
+
     // Save/Upsert metrics
     await this.prisma.weeklyMetrics.upsert({
       where: {
