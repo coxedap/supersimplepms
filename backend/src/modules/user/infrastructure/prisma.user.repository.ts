@@ -14,7 +14,9 @@ export class PrismaUserRepository implements UserRepository {
       team: model.team?.name || undefined,
       status: model.status,
       wipLimit: 3, // Default or from config
-      p1Limit: 1    // Default or from config
+      p1Limit: 1,    // Default or from config
+      wipLimitOverride: model.wipLimitOverride || undefined,
+      p1LimitOverride: model.p1LimitOverride || undefined
     });
   }
 
@@ -42,6 +44,24 @@ export class PrismaUserRepository implements UserRepository {
         role: props.role,
         teamId: props.teamId,
         status: props.status,
+        wipLimitOverride: props.wipLimitOverride,
+        p1LimitOverride: props.p1LimitOverride
+      }
+    });
+  }
+
+  public async update(user: User): Promise<void> {
+    const props = user.getProps();
+    await this.prisma.user.update({
+      where: { id: props.id },
+      data: {
+        name: props.name,
+        role: props.role,
+        teamId: props.teamId,
+        status: props.status,
+        wipLimitOverride: props.wipLimitOverride,
+        p1LimitOverride: props.p1LimitOverride,
+        updatedAt: new Date()
       }
     });
   }

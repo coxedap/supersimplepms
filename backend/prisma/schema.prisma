@@ -60,10 +60,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  teamId         String?
-  team           Team?    @relation("TeamMembers", fields: [teamId], references: [id])
-  ledTeams       Team[]   @relation("TeamLeader")
-  managedProjects Project[] @relation("ProjectManager")
+  teamId             String?
+  team               Team?    @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams           Team[]   @relation("TeamLeader")
+  managedProjects    Project[] @relation("ProjectManager")
+  wipLimitOverride   Int?
+  p1LimitOverride    Int?
 
   tasks          Task[]          @relation("TaskOwner")
   weeklyMetrics  WeeklyMetrics[]

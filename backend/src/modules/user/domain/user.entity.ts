@@ -9,6 +9,8 @@ export interface UserProps {
   status: string;
   wipLimit: number;
   p1Limit: number;
+  wipLimitOverride?: number;
+  p1LimitOverride?: number;
 }
 
 export class User {

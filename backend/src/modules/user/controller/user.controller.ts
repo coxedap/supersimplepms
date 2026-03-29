@@ -31,4 +31,52 @@ export class UserController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  public async updateRole(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { requesterId, newRole } = req.body;
+      const user = await this.userService.updateRole(id, { requesterId, newRole });
+      res.json(user.getProps());
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
+
+  public async updateTeam(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { requesterId, teamId } = req.body;
+      const user = await this.userService.updateTeam(id, { requesterId, teamId });
+      res.json(user.getProps());
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
+
+  public async updateLimits(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { requesterId, wipLimitOverride, p1LimitOverride } = req.body;
+      const user = await this.userService.updateLimits(id, {
+        requesterId,
+        wipLimitOverride,
+        p1LimitOverride
+      });
+      res.json(user.getProps());
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
+
+  public async updateStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { requesterId, status } = req.body;
+      const user = await this.userService.updateStatus(id, { requesterId, status });
+      res.json(user.getProps());
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
 }

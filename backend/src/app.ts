@@ -30,7 +30,7 @@ const dashboardService = new DashboardService(prisma, systemService);
 const dashboardController = new DashboardController(dashboardService);
 
 const userRepo = new PrismaUserRepository(prisma);
-const userService = new UserServiceImpl(userRepo);
+const userService = new UserServiceImpl(userRepo, prisma);
 const userController = new UserController(userService);
 
 const projectRepo = new PrismaProjectRepository(prisma);
@@ -49,35 +49,39 @@ const metricsService = new MetricsService(prisma);
 const metricsController = new MetricsController(metricsService);
 
 // Auth/User Routes
-app.post('/auth/login', (req: Request, res: Response) => userController.login(req, res));
-app.post('/auth/register', (req: Request, res: Response) => userController.register(req, res));
-app.get('/users', (req: Request, res: Response) => userController.listAll(req, res));
+app.post('/api/auth/login', (req: Request, res: Response) => userController.login(req, res));
+app.post('/api/auth/register', (req: Request, res: Response) => userController.register(req, res));
+app.get('/api/users', (req: Request, res: Response) => userController.listAll(req, res));
+app.patch('/api/users/:id/role', (req: Request, res: Response) => userController.updateRole(req, res));
+app.patch('/api/users/:id/team', (req: Request, res: Response) => userController.updateTeam(req, res));
+app.patch('/api/users/:id/limits', (req: Request, res: Response) => userController.updateLimits(req, res));
+app.patch('/api/users/:id/status', (req: Request, res: Response) => userController.updateStatus(req, res));
 
 // Project Routes
-app.post('/projects', (req: Request, res: Response) => projectController.create(req, res));
-app.get('/projects', (req: Request, res: Response) => projectController.list(req, res));
-app.get('/projects/:id', (req: Request, res: Response) => projectController.get(req, res));
-app.put('/projects/:id', (req: Request, res: Response) => projectController.update(req, res));
+app.post('/api/projects', (req: Request, res: Response) => projectController.create(req, res));
+app.get('/api/projects', (req: Request, res: Response) => projectController.list(req, res));
+app.get('/api/projects/:id', (req: Request, res: Response) => projectController.get(req, res));
+app.put('/api/projects/:id', (req: Request, res: Response) => projectController.update(req, res));
 
 // Team Routes
-app.post('/teams', (req: Request, res: Response) => teamController.create(req, res));
-app.get('/teams', (req: Request, res: Response) => teamController.list(req, res));
-app.post('/teams/members', (req: Request, res: Response) => teamController.addMember(req, res));
+app.post('/api/teams', (req: Request, res: Response) => teamController.create(req, res));
+app.get('/api/teams', (req: Request, res: Response) => teamController.list(req, res));
+app.post('/api/teams/members', (req: Request, res: Response) => teamController.addMember(req, res));
 
 // Dashboard Routes
-app.get('/dashboard/focus/:userId', (req: Request, res: Response) => dashboardController.getFocus(req, res));
-app.get('/dashboard/team', (req: Request, res: Response) => dashboardController.getTeam(req, res));
+app.get('/api/dashboard/focus/:userId', (req: Request, res: Response) => dashboardController.getFocus(req, res));
+app.get('/api/dashboard/team', (req: Request, res: Response) => dashboardController.getTeam(req, res));
 
 // Task Routes
-app.post('/tasks', (req: Request, res: Response) => taskController.create(req, res));
-app.put('/tasks/:id', (req: Request, res: Response) => taskController.update(req, res));
-app.patch('/tasks/:id/status', (req: Request, res: Response) => taskController.changeStatus(req, res));
-app.get('/tasks/owner/:ownerId', (req: Request, res: Response) => taskController.listByOwner(req, res));
-app.delete('/tasks/:id', (req: Request, res: Response) => taskController.delete(req, res));
-app.post('/tasks/system/check-overdue', (req: Request, res: Response) => taskController.triggerOverdueCheck(req, res));
+app.post('/api/tasks', (req: Request, res: Response) => taskController.create(req, res));
+app.put('/api/tasks/:id', (req: Request, res: Response) => taskController.update(req, res));
+app.patch('/api/tasks/:id/status', (req: Request, res: Response) => taskController.changeStatus(req, res));
+app.get('/api/tasks/owner/:ownerId', (req: Request, res: Response) => taskController.listByOwner(req, res));
+app.delete('/api/tasks/:id', (req: Request, res: Response) => taskController.delete(req, res));
+app.post('/api/tasks/system/check-overdue', (req: Request, res: Response) => taskController.triggerOverdueCheck(req, res));
 
 // Metrics Routes
-app.get('/metrics/weekly/:userId', (req: Request, res: Response) => metricsController.getWeeklyMetrics(req, res));
+app.get('/api/metrics/weekly/:userId', (req: Request, res: Response) => metricsController.getWeeklyMetrics(req, res));
 
 // Health check
 app.get('/health', (req: Request, res: Response) => res.json({ status: 'ok' }));
