@@ -8,9 +8,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const canAccessUserManagement = user && (user.role === 'MANAGER' || user.role === 'ADMIN');
+  const canAccessTeams = user && user.role !== 'CONTRIBUTOR';
+  const canAccessProjects = user && user.role !== 'CONTRIBUTOR';
 
   // Determine current section based on URL path
-  const currentSection = location.pathname.startsWith('/users') ? 'users' : 'pms';
+  const currentSection = location.pathname.startsWith('/users')
+    ? 'users'
+    : location.pathname.startsWith('/teams')
+    ? 'teams'
+    : location.pathname.startsWith('/projects')
+    ? 'projects'
+    : 'pms';
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -94,6 +102,30 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 }`}
               >
                 👥 Users Management
+              </button>
+            )}
+            {canAccessTeams && (
+              <button
+                onClick={() => handleNavigate('/teams')}
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  currentSection === 'teams'
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                🏷️ Teams
+              </button>
+            )}
+            {canAccessProjects && (
+              <button
+                onClick={() => handleNavigate('/projects')}
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  currentSection === 'projects'
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                📁 Projects
               </button>
             )}
           </div>

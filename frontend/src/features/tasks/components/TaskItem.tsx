@@ -4,6 +4,8 @@ import { useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { EditTaskModal } from './EditTaskModal';
 import { Modal } from '../../../components/Modal';
+import { BlockReasonModal } from '../../../components/BlockReasonModal';
+import { ConfirmModal } from '../../../components/ConfirmModal';
 import { TaskCard } from './TaskCard';
 
 import { CheckCircle2, Play, Ban } from 'lucide-react';
@@ -26,24 +28,29 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const { user } = useAuthStore();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateTaskStatus();
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
 
   const handleStatusChange = (newStatus: TaskStatus) => {
-    let reason: string | undefined;
     if (newStatus === 'BLOCKED') {
-      const promptValue = window.prompt("Reason for blocking this task?");
-      if (!promptValue) return;
-      reason = promptValue;
+      setIsBlockModalOpen(true);
+      return;
     }
-    updateStatus({ id: task.id, status: newStatus, reason });
+    updateStatus({ id: task.id, status: newStatus });
+  };
+
+  const handleBlockConfirm = (reason: string) => {
+    updateStatus({ id: task.id, status: 'BLOCKED', reason });
+    setIsBlockModalOpen(false);
   };
 
   const handleDelete = () => {
     if (!user) return;
-    if (window.confirm("Are you sure you want to delete this task?")) {
-      deleteTask({ id: task.id, requesterId: user.id });
-    }
+    deleteTask({ id: task.id, requesterId: user.id });
+    setIsDeleteModalOpen(false);
+    setIsDetailsOpen(false);
   };
 
   const getAvailableTransitions = (status: TaskStatus): TaskStatus[] => {
@@ -63,7 +70,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         let icon;
         let colorClass = "";
         let label = "";
-        
+
         if (status === 'DONE') {
           icon = <CheckCircle2 className="w-3.5 h-3.5" />;
           colorClass = "text-emerald-600 hover:bg-emerald-50 border-emerald-100 hover:border-emerald-200";
@@ -77,7 +84,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           colorClass = "text-amber-600 hover:bg-amber-50 border-amber-100 hover:border-amber-200";
           label = "Block";
         }
-        
+
         return (
           <button
             key={status}
@@ -86,7 +93,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               handleStatusChange(status);
             }}
             disabled={isUpdatingStatus}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50 ${colorClass}`}
+            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-wide bg-white border rounded-lg transition-all active:scale-95 disabled:opacity-50 ${colorClass}`}
           >
             {icon}
             {label}
@@ -107,9 +114,15 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         footerActions={footerActions}
       />
 
-      <Modal 
-        isOpen={isDetailsOpen} 
-        onClose={() => setIsDetailsOpen(false)} 
+      <BlockReasonModal
+        isOpen={isBlockModalOpen}
+        onConfirm={handleBlockConfirm}
+        onCancel={() => setIsBlockModalOpen(false)}
+      />
+
+      <Modal
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
         title="Task Details"
         maxWidthClassName="max-w-2xl"
         footer={
@@ -129,7 +142,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                   Edit Task
                 </button>
                 <button
-                  onClick={() => handleDelete()}
+                  onClick={() => setIsDeleteModalOpen(true)}
                   disabled={isDeleting}
                   className="px-8 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
                 >
@@ -225,6 +238,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           onClose={() => setIsEditModalOpen(false)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${task.title}"? This action cannot be undone.`}
+        confirmLabel="Delete Task"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setIsDeleteModalOpen(false)}
+      />
     </>
   );
 };

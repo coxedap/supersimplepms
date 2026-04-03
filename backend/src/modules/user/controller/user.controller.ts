@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { UserService } from "../application/user.service.interface";
+import { signToken } from "../../../shared/utils/jwt";
 
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -8,7 +9,15 @@ export class UserController {
     try {
       const { userId } = req.body;
       const user = await this.userService.getUser(userId);
-      res.json(user.getProps());
+      const props = user.getProps();
+      const token = signToken({ userId: props.id, role: props.role });
+      res.cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        secure: process.env.NODE_ENV === 'production',
+      });
+      res.json(props);
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }

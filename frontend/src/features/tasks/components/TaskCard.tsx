@@ -1,5 +1,5 @@
 import React from 'react';
-import { Task, TaskStatus } from '../types';
+import { Task } from '../types';
 
 export interface TaskCardProps {
   task: Task;
@@ -11,6 +11,20 @@ export interface TaskCardProps {
   footerActions?: React.ReactNode;
 }
 
+const STATUS_ACCENT: Record<string, string> = {
+  TODO:    'border-l-gray-300',
+  DOING:   'border-l-blue-400',
+  DONE:    'border-l-green-400',
+  BLOCKED: 'border-l-amber-400',
+  OVERDUE: 'border-l-red-500',
+};
+
+const PRIORITY_STYLE: Record<string, string> = {
+  P1: 'bg-red-100 text-red-700',
+  P2: 'bg-blue-100 text-blue-700',
+  P3: 'bg-gray-100 text-gray-500',
+};
+
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   ownerName,
@@ -20,97 +34,86 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   headerActions,
   footerActions,
 }) => {
-  const getDeadlineRiskStatus = () => {
+  const getDeadlineRisk = () => {
     if (task.status === 'DONE') return null;
-
-    const now = new Date();
-    const deadline = new Date(task.deadline);
-    const diffHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (task.status === 'OVERDUE' || diffHours < 0) {
-      return { label: 'CRITICAL', className: 'bg-red-100 text-red-700' };
-    }
-    if (diffHours < 24) return { label: 'AT RISK', className: 'bg-red-100 text-red-700' };
-    if (diffHours < 48) return { label: 'WATCH', className: 'bg-amber-100 text-amber-700' };
+    const diffHours = (new Date(task.deadline).getTime() - Date.now()) / (1000 * 60 * 60);
+    if (task.status === 'OVERDUE' || diffHours < 0) return { label: 'OVERDUE', color: 'text-red-500' };
+    if (diffHours < 24) return { label: 'AT RISK', color: 'text-red-500' };
+    if (diffHours < 48) return { label: 'WATCH', color: 'text-amber-500' };
     return null;
   };
 
-  const deadlineRisk = risk || getDeadlineRiskStatus();
+  const deadlineRisk = risk
+    ? { label: risk.level.replace('_', ' '), color: risk.level === 'CRITICAL' || risk.level === 'AT_RISK' ? 'text-red-500' : 'text-amber-500' }
+    : getDeadlineRisk();
 
   return (
     <div
-      className="flex flex-col p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-blue-200 transition-all group cursor-pointer"
+      className={`flex flex-col bg-white border border-gray-100 border-l-4 ${STATUS_ACCENT[task.status] ?? 'border-l-gray-200'} rounded-xl shadow-sm hover:shadow-md hover:border-gray-200 transition-all cursor-pointer`}
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onClick?.();
-      }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick?.(); }}
     >
-      <div className="flex justify-between items-start mb-2 mt-1">
-        <h4 className="text-sm font-bold text-gray-900 leading-snug">{task.title}</h4>
-        <div className="flex items-center gap-1.5">
-          {headerActions}
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-            task.priority === 'P1' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-          }`}>
-            {task.priority}
-          </span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
-            task.status === 'DONE' ? 'bg-green-100 text-green-700' :
-            task.status === 'BLOCKED' ? 'bg-amber-100 text-amber-700' :
-            task.status === 'DOING' ? 'bg-indigo-100 text-indigo-700' :
-            task.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {task.status === 'TODO' ? 'TO DO' : task.status}
-          </span>
+      {/* Main content */}
+      <div className="p-3 space-y-2">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="text-sm font-bold text-gray-900 leading-snug flex-1 min-w-0">{task.title}</h4>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {headerActions}
+            {task.priority !== 'P3' && (
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${PRIORITY_STYLE[task.priority]}`}>
+                {task.priority}
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Description — only in personal board (no ownerName) */}
+        {task.description && !ownerName && (
+          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">{task.description}</p>
+        )}
+
+        {/* Owner / project — team board */}
+        {(ownerName || projectName) && (
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {ownerName && (
+              <span className="text-[11px] text-gray-500 font-medium">{ownerName}</span>
+            )}
+            {projectName && (
+              <span className="text-[11px] text-gray-400 truncate max-w-full">{projectName}</span>
+            )}
+          </div>
+        )}
+
+        {/* Blocker reason */}
+        {task.status === 'BLOCKED' && task.blockerReason && (
+          <div className="px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-[11px] text-amber-800 line-clamp-2">
+              <span className="font-black">Blocked: </span>{task.blockerReason}
+            </p>
+          </div>
+        )}
       </div>
 
-      {(ownerName || projectName) && (
-        <div className="space-y-1 mb-3">
-          {ownerName && (
-            <p className="text-[11px] text-gray-500 flex items-center">
-              <span className="font-bold text-gray-700 mr-1">Owner:</span> {ownerName}
-            </p>
-          )}
-          {projectName && (
-            <p className="text-[11px] text-gray-500 flex items-center">
-              <span className="font-bold text-gray-700 mr-1">Project:</span> {projectName}
-            </p>
-          )}
-        </div>
-      )}
-
-      {task.description && !ownerName && !projectName && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{task.description}</p>
-      )}
-
-      {deadlineRisk && (
-        <div className="mb-3">
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${deadlineRisk.className || (deadlineRisk.level === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')}`}>
-            {deadlineRisk.label || (deadlineRisk.level === 'HIGH' ? 'HIGH RISK' : 'WATCH')}
+      {/* Footer */}
+      <div className="px-3 pb-3 flex items-center justify-between gap-2 mt-auto">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] text-gray-400 whitespace-nowrap">
+            {new Date(task.deadline).toLocaleDateString([], { month: 'short', day: 'numeric' })}
           </span>
-        </div>
-      )}
-
-      {task.status === 'BLOCKED' && task.blockerReason && (
-        <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-          <strong>Blocker:</strong> {task.blockerReason}
-        </div>
-      )}
-
-      <div className="mt-auto flex justify-between items-center border-t pt-3">
-        <span className="text-xs text-gray-500">
-          Due: {new Date(task.deadline).toLocaleDateString()}
-        </span>
-        <div className="flex items-center gap-2">
-          {footerActions}
-          {deadlineRisk && (deadlineRisk.level === 'HIGH' || deadlineRisk.label === 'HIGH RISK' || deadlineRisk.label === 'CRITICAL' || deadlineRisk.label === 'AT RISK') && (
-            <span className="text-[9px] font-black text-red-500">HIGH RISK</span>
+          {deadlineRisk && (
+            <span className={`text-[10px] font-black uppercase ${deadlineRisk.color}`}>
+              {deadlineRisk.label}
+            </span>
           )}
         </div>
+        {footerActions && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {footerActions}
+          </div>
+        )}
       </div>
     </div>
   );

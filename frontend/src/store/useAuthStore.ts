@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import axios from 'axios';
 
 export type Role = 'CONTRIBUTOR' | 'TEAM_LEAD' | 'MANAGER' | 'ADMIN';
 
@@ -25,7 +26,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       login: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: () => {
+        axios.post('/api/auth/logout', {}, { withCredentials: true }).catch(() => {});
+        set({ user: null, isAuthenticated: false });
+      },
     }),
     {
       name: 'auth-storage',

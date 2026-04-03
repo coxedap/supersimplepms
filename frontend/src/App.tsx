@@ -5,6 +5,8 @@ import { LoginPage } from './features/users/components/LoginPage';
 import { RegisterPage } from './features/users/components/RegisterPage';
 import { UserManagementPage } from './features/users/components/UserManagementPage';
 import { UserEditPage } from './features/users/components/UserEditPage';
+import { TeamsPage } from './features/teams/components/TeamsPage';
+import { ProjectsPage } from './features/projects/components/ProjectsPage';
 import { Layout } from './components/Layout';
 import { FocusDashboard } from './features/dashboard/components/FocusDashboard';
 import { TeamDashboard } from './features/dashboard/components/TeamDashboard';
@@ -101,6 +103,12 @@ function App() {
           {/* Users Section */}
           <Route path="/users" element={<UserManagementPage />} />
           <Route path="/users/:userId" element={<UserEditPage />} />
+
+          {/* Teams Section */}
+          <Route path="/teams" element={<TeamsPage />} />
+
+          {/* Projects Section */}
+          <Route path="/projects" element={<ProjectsPage />} />
 
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />

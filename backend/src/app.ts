@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import { authMiddleware } from './shared/middleware/auth.middleware';
 import { prisma } from './shared/utils/prisma';
 import { PrismaTaskRepository } from './modules/task/infrastructure/prisma.task.repository';
 import { TaskServiceImpl } from './modules/task/application/task.service.impl';
@@ -20,8 +22,9 @@ import { SystemService } from './modules/system/application/system.service';
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // DI Container
 const systemService = new SystemService(prisma);
@@ -48,9 +51,17 @@ const taskController = new TaskController(taskService);
 const metricsService = new MetricsService(prisma);
 const metricsController = new MetricsController(metricsService);
 
-// Auth/User Routes
+// Public routes (no auth required)
 app.post('/api/auth/login', (req: Request, res: Response) => userController.login(req, res));
 app.post('/api/auth/register', (req: Request, res: Response) => userController.register(req, res));
+app.post('/api/auth/logout', (_req: Request, res: Response) => {
+  res.clearCookie('token', { httpOnly: true, sameSite: 'lax' });
+  res.json({ message: 'Logged out' });
+});
+
+// All routes below require a valid JWT
+app.use(authMiddleware);
+
 app.get('/api/users', (req: Request, res: Response) => userController.listAll(req, res));
 app.patch('/api/users/:id/role', (req: Request, res: Response) => userController.updateRole(req, res));
 app.patch('/api/users/:id/team', (req: Request, res: Response) => userController.updateTeam(req, res));
@@ -66,7 +77,9 @@ app.put('/api/projects/:id', (req: Request, res: Response) => projectController.
 // Team Routes
 app.post('/api/teams', (req: Request, res: Response) => teamController.create(req, res));
 app.get('/api/teams', (req: Request, res: Response) => teamController.list(req, res));
+app.patch('/api/teams/:id', (req: Request, res: Response) => teamController.update(req, res));
 app.post('/api/teams/members', (req: Request, res: Response) => teamController.addMember(req, res));
+app.delete('/api/teams/:teamId/members/:userId', (req: Request, res: Response) => teamController.removeMember(req, res));
 
 // Dashboard Routes
 app.get('/api/dashboard/focus/:userId', (req: Request, res: Response) => dashboardController.getFocus(req, res));
@@ -84,10 +97,10 @@ app.post('/api/tasks/system/check-overdue', (req: Request, res: Response) => tas
 app.get('/api/metrics/weekly/:userId', (req: Request, res: Response) => metricsController.getWeeklyMetrics(req, res));
 
 // Health check
-app.get('/health', (req: Request, res: Response) => res.json({ status: 'ok' }));
+app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));
 
 // Global Error Handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('ERROR:', err);
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({

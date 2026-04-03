@@ -4,6 +4,9 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { EditTaskModal } from '../../tasks/components/EditTaskModal';
 import { Modal } from '../../../components/Modal';
 import { TaskItem } from '../../tasks/components/TaskItem';
+import { useUpdateTaskStatus } from '../../tasks/hooks/useTasks';
+import { TaskStatus } from '../../tasks/types';
+import { BlockReasonModal } from '../../../components/BlockReasonModal';
 
 export const TeamDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -11,6 +14,10 @@ export const TeamDashboard: React.FC = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const canEdit = user?.role === 'MANAGER' || user?.role === 'ADMIN';
+  const { mutate: updateStatus } = useUpdateTaskStatus();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overColumn, setOverColumn] = useState<TaskStatus | null>(null);
+  const [pendingBlockTaskId, setPendingBlockTaskId] = useState<string | null>(null);
 
   const selectedTask = data?.allTeamTasks.find(t => t.id === selectedTaskId) || null;
 
@@ -147,36 +154,73 @@ export const TeamDashboard: React.FC = () => {
           Team-Wide Execution Board
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { title: 'Todo', status: ['TODO'] },
-            { title: 'In Progress', status: ['DOING'] },
-            { title: 'Blocked & Overdue', status: ['BLOCKED', 'OVERDUE'] },
-          ].map((col) => (
-            <div key={col.title} className="flex flex-col space-y-4">
-              <div className="flex justify-between items-center px-2">
-                <span className="text-xs font-bold text-gray-500 uppercase">{col.title}</span>
-                <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                  {data?.allTeamTasks.filter(t => col.status.includes(t.status)).length || 0}
-                </span>
-              </div>
-              <div className={`flex-1 min-h-[300px] p-3 rounded-2xl border-2 border-dashed ${
-                col.title.includes('Blocked') ? 'bg-amber-50/30 border-amber-100' : 'bg-gray-50/50 border-gray-100'
-              } space-y-3`}>
-                {data?.allTeamTasks
-                  .filter(t => col.status.includes(t.status))
-                  .map((task) => (
-                    <TaskItem
+          {([
+            { title: 'Todo',              statuses: ['TODO']              as TaskStatus[], dropTarget: 'TODO'    as TaskStatus },
+            { title: 'In Progress',       statuses: ['DOING']             as TaskStatus[], dropTarget: 'DOING'   as TaskStatus },
+            { title: 'Blocked & Overdue', statuses: ['BLOCKED', 'OVERDUE'] as TaskStatus[], dropTarget: 'BLOCKED' as TaskStatus },
+          ]).map((col) => {
+            const colTasks = data?.allTeamTasks.filter(t => col.statuses.includes(t.status)) ?? [];
+            const isOver = overColumn === col.dropTarget;
+            return (
+              <div key={col.title} className="flex flex-col space-y-4">
+                <div className="flex justify-between items-center px-2">
+                  <span className="text-xs font-bold text-gray-500 uppercase">{col.title}</span>
+                  <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {colTasks.length}
+                  </span>
+                </div>
+                <div
+                  onDragOver={(e) => { if (!canEdit) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOverColumn(col.dropTarget); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverColumn(null); }}
+                  onDrop={(e) => {
+                    if (!canEdit) return;
+                    e.preventDefault();
+                    const taskId = e.dataTransfer.getData('taskId');
+                    if (!taskId) return;
+                    const task = data?.allTeamTasks.find(t => t.id === taskId);
+                    if (!task || task.status === col.dropTarget) { setDraggingId(null); setOverColumn(null); return; }
+                    if (col.dropTarget === 'BLOCKED') {
+                      setPendingBlockTaskId(taskId);
+                    } else {
+                      updateStatus({ id: taskId, status: col.dropTarget });
+                    }
+                    setDraggingId(null);
+                    setOverColumn(null);
+                  }}
+                  className={`flex-1 min-h-[300px] p-3 rounded-2xl border-2 border-dashed space-y-3 transition-colors ${
+                    isOver
+                      ? 'bg-blue-50 border-blue-400'
+                      : col.title.includes('Blocked')
+                      ? 'bg-amber-50/30 border-amber-100'
+                      : 'bg-gray-50/50 border-gray-100'
+                  }`}
+                >
+                  {colTasks.map((task) => (
+                    <div
                       key={task.id}
-                      task={task}
-                      ownerName={task.ownerName}
-                      projectName={task.projectName}
-                      risk={task.risk}
-                      onClick={() => setSelectedTaskId(task.id)}
-                    />
+                      draggable={canEdit}
+                      onDragStart={(e) => { if (!canEdit) return; setDraggingId(task.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('taskId', task.id); }}
+                      onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
+                      className={`transition-opacity ${draggingId === task.id ? 'opacity-40' : 'opacity-100'}`}
+                    >
+                      <TaskItem
+                        task={task}
+                        ownerName={task.ownerName}
+                        projectName={task.projectName}
+                        risk={task.risk}
+                        onClick={() => setSelectedTaskId(task.id)}
+                      />
+                    </div>
                   ))}
+                  {colTasks.length === 0 && (
+                    <p className={`text-xs text-center mt-10 italic ${isOver ? 'text-blue-400 font-bold' : 'text-gray-400'}`}>
+                      {isOver ? 'Drop here' : 'No tasks here'}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -283,6 +327,15 @@ export const TeamDashboard: React.FC = () => {
           onClose={() => setIsEditOpen(false)}
         />
       )}
+
+      <BlockReasonModal
+        isOpen={!!pendingBlockTaskId}
+        onConfirm={(reason) => {
+          if (pendingBlockTaskId) updateStatus({ id: pendingBlockTaskId, status: 'BLOCKED', reason });
+          setPendingBlockTaskId(null);
+        }}
+        onCancel={() => setPendingBlockTaskId(null)}
+      />
     </div>
   );
 };

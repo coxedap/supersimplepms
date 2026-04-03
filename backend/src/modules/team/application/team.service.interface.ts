@@ -21,9 +21,23 @@ export interface TeamRepository {
   removeMember(teamId: string, userId: string): Promise<void>;
 }
 
+export interface UpdateTeamDTO {
+  name?: string;
+  leaderId?: string | null;
+  requesterId: string; // must be ADMIN or MANAGER
+}
+
+export interface RemoveMemberDTO {
+  userId: string;
+  teamId: string;
+  requesterId: string; // must be ADMIN, MANAGER, or TEAM_LEAD of this team
+}
+
 export interface TeamService {
   createTeam(data: CreateTeamDTO): Promise<Team>;
+  updateTeam(id: string, data: UpdateTeamDTO): Promise<Team>;
   addMember(data: AddMemberDTO): Promise<void>;
+  removeMember(data: RemoveMemberDTO): Promise<void>;
   getTeam(id: string): Promise<Team>;
   getAllTeams(): Promise<Team[]>;
 }
