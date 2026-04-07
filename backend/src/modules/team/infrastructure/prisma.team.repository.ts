@@ -10,6 +10,7 @@ export class PrismaTeamRepository implements TeamRepository {
       id: model.id,
       name: model.name,
       leaderId: model.leaderId || undefined,
+      organizationId: model.organizationId,
       createdAt: model.createdAt
     });
   }
@@ -25,7 +26,8 @@ export class PrismaTeamRepository implements TeamRepository {
       data: {
         id: props.id,
         name: props.name,
-        leaderId: props.leaderId
+        leaderId: props.leaderId,
+        organizationId: props.organizationId,
       }
     });
   }
@@ -41,8 +43,8 @@ export class PrismaTeamRepository implements TeamRepository {
     });
   }
 
-  public async findAll(): Promise<Team[]> {
-    const models = await this.prisma.team.findMany();
+  public async findAll(organizationId: string): Promise<Team[]> {
+    const models = await this.prisma.team.findMany({ where: { organizationId } });
     return models.map(m => this.mapToDomain(m));
   }
 

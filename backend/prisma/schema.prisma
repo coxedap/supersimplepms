@@ -28,98 +28,153 @@ enum Priority {
   P3
 }
 
-model Team {
+model Organization {
   id        String   @id @default(uuid())
   name      String
-  leaderId  String?
-  leader    User?    @relation("TeamLeader", fields: [leaderId], references: [id])
-  members   User[]   @relation("TeamMembers")
+  slug      String   @unique
   createdAt DateTime @default(now())
+
+  users         User[]
+  teams         Team[]
+  projects      Project[]
+  tasks         Task[]
+  weeklyMetrics WeeklyMetrics[]
+  systemConfigs SystemConfig[]
+  invites       Invite[]
+
+  @@map("organizations")
+}
+
+model Team {
+  id             String       @id @default(uuid())
+  name           String
+  leaderId       String?
+  leader         User?        @relation("TeamLeader", fields: [leaderId], references: [id])
+  members        User[]       @relation("TeamMembers")
+  projects       Project[]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
 
   @@map("teams")
 }
 
 model Project {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  managerId   String
-  manager     User     @relation("ProjectManager", fields: [managerId], references: [id])
-  status      String   @default("active") // active/archived/completed
-  tasks       Task[]
-  createdAt   DateTime @default(now())
+  id             String       @id @default(uuid())
+  name           String
+  description    String?
+  managerId      String
+  manager        User         @relation("ProjectManager", fields: [managerId], references: [id])
+  teamId         String?
+  team           Team?        @relation(fields: [teamId], references: [id])
+  status         String       @default("active")
+  tasks          Task[]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
 
   @@map("projects")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  role      Role     @default(CONTRIBUTOR)
-  status    String   @default("active") // active/inactive
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String       @id @default(uuid())
+  name           String
+  email          String       @unique
+  passwordHash   String
+  role           Role         @default(CONTRIBUTOR)
+  status         String       @default("active")
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   teamId             String?
-  team               Team?    @relation("TeamMembers", fields: [teamId], references: [id])
-  ledTeams           Team[]   @relation("TeamLeader")
+  team               Team?     @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams           Team[]    @relation("TeamLeader")
   managedProjects    Project[] @relation("ProjectManager")
   wipLimitOverride   Int?
   p1LimitOverride    Int?
 
-  tasks          Task[]          @relation("TaskOwner")
-  weeklyMetrics  WeeklyMetrics[]
+  tasks         Task[]          @relation("TaskOwner")
+  weeklyMetrics WeeklyMetrics[]
+  sentInvites   Invite[]        @relation("InvitedBy")
 
   @@map("users")
 }
 
 model Task {
-  id             String     @id @default(uuid())
-  title          String
-  description    String?
-  ownerId        String
-  owner          User       @relation("TaskOwner", fields: [ownerId], references: [id])
-  projectId      String?
-  project        Project?   @relation(fields: [projectId], references: [id])
-  priority       Priority
-  status         TaskStatus @default(TODO)
-  deadline       DateTime
-  estimatedEffort Float      // hours
-  actualEffort   Float?     // hours
-  blockerReason  String?
-  blockedAt      DateTime?
-  startedAt      DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id              String       @id @default(uuid())
+  title           String
+  description     String?
+  ownerId         String
+  owner           User         @relation("TaskOwner", fields: [ownerId], references: [id])
+  projectId       String?
+  project         Project?     @relation(fields: [projectId], references: [id])
+  priority        Priority
+  status          TaskStatus   @default(TODO)
+  deadline        DateTime
+  estimatedEffort Float
+  actualEffort    Float?
+  blockerReason   String?
+  blockedAt       DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@index([ownerId])
   @@index([status])
   @@index([projectId])
+  @@index([organizationId])
   @@map("tasks")
 }
 
 model WeeklyMetrics {
-  id               String   @id @default(uuid())
+  id               String       @id @default(uuid())
   userId           String
-  user             User     @relation(fields: [userId], references: [id])
+  user             User         @relation(fields: [userId], references: [id])
   weekStart        DateTime
   tasksAssigned    Int
   tasksCompleted   Int
   onTimeRate       Float
   avgCycleTime     Float
   blockedTimeRatio Float
-  createdAt        DateTime @default(now())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  createdAt        DateTime     @default(now())
 
   @@unique([userId, weekStart])
   @@map("weekly_metrics")
 }
 
-model SystemConfig {
-  id          String   @id @default(uuid())
-  key         String   @unique
-  value       String
-  updatedAt   DateTime @updatedAt
+model Invite {
+  id             String       @id @default(uuid())
+  email          String
+  role           Role         @default(CONTRIBUTOR)
+  token          String       @unique
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  invitedById    String
+  invitedBy      User         @relation("InvitedBy", fields: [invitedById], references: [id])
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
 
+  @@index([token])
+  @@index([organizationId, email])
+  @@map("invites")
+}
+
+model SystemConfig {
+  id             String       @id @default(uuid())
+  key            String
+  value          String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, key])
   @@map("system_configs")
 }

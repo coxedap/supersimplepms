@@ -1,93 +1,123 @@
 import { PrismaClient, Role } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding PMS 0.1 with new schema...');
+  console.log('Seeding PMS 0.1...');
 
-  // 1. Create System Configs
-  await prisma.systemConfig.upsert({
-    where: { key: 'WIP_LIMIT_PER_USER' },
-    update: {},
-    create: { key: 'WIP_LIMIT_PER_USER', value: '3' },
+  // 1. Create Organization
+  const org = await prisma.organization.create({
+    data: {
+      id: crypto.randomUUID(),
+      name: 'Acme Corp',
+      slug: 'acme-corp',
+    },
   });
 
-  await prisma.systemConfig.upsert({
-    where: { key: 'P1_LIMIT_PER_USER' },
-    update: {},
-    create: { key: 'P1_LIMIT_PER_USER', value: '1' },
+  // 2. Create System Configs (scoped to org)
+  await prisma.systemConfig.createMany({
+    data: [
+      { id: crypto.randomUUID(), key: 'WIP_LIMIT_PER_USER', value: '3', organizationId: org.id },
+      { id: crypto.randomUUID(), key: 'P1_LIMIT_PER_USER', value: '1', organizationId: org.id },
+    ],
   });
 
-  // 2. Create a Team
+  // 3. Create a Team (no leader yet)
   const mainTeam = await prisma.team.create({
     data: {
+      id: crypto.randomUUID(),
       name: 'Core Operations',
-    }
+      organizationId: org.id,
+    },
   });
 
-  // 3. Create an Admin User
+  const passwordHash = await bcrypt.hash('password123', 12);
+
+  // 4. Create Admin
   const admin = await prisma.user.create({
     data: {
+      id: crypto.randomUUID(),
       name: 'System Admin',
+      email: 'admin@acme.com',
+      passwordHash,
       role: 'ADMIN' as Role,
       status: 'active',
-      teamId: mainTeam.id
-    }
+      teamId: mainTeam.id,
+      organizationId: org.id,
+    },
   });
 
-  // 4. Create a Manager
+  // 5. Create Manager
   const manager = await prisma.user.create({
     data: {
+      id: crypto.randomUUID(),
       name: 'Alex Executioner',
+      email: 'manager@acme.com',
+      passwordHash,
       role: 'MANAGER' as Role,
       status: 'active',
-      teamId: mainTeam.id
-    }
+      teamId: mainTeam.id,
+      organizationId: org.id,
+    },
   });
 
-  // 5. Create a Team Lead
+  // 6. Create Team Lead
   const teamLead = await prisma.user.create({
     data: {
+      id: crypto.randomUUID(),
       name: 'Sam Leader',
+      email: 'lead@acme.com',
+      passwordHash,
       role: 'TEAM_LEAD' as Role,
       status: 'active',
-      teamId: mainTeam.id
-    }
+      teamId: mainTeam.id,
+      organizationId: org.id,
+    },
   });
 
-  // 6. Create Contributors
-  const users = [
-    { name: 'Jordan Builder', role: 'CONTRIBUTOR' as Role },
-    { name: 'Taylor Developer', role: 'CONTRIBUTOR' as Role },
+  // 7. Create Contributors
+  const contributors = [
+    { name: 'Jordan Builder', email: 'jordan@acme.com' },
+    { name: 'Taylor Developer', email: 'taylor@acme.com' },
   ];
 
-  for (const u of users) {
+  for (const c of contributors) {
     await prisma.user.create({
       data: {
-        ...u,
+        id: crypto.randomUUID(),
+        name: c.name,
+        email: c.email,
+        passwordHash,
+        role: 'CONTRIBUTOR' as Role,
         status: 'active',
-        teamId: mainTeam.id
+        teamId: mainTeam.id,
+        organizationId: org.id,
       },
     });
   }
 
-  // 7. Set Team Leader
+  // 8. Set Team Leader
   await prisma.team.update({
     where: { id: mainTeam.id },
-    data: { leaderId: teamLead.id }
+    data: { leaderId: teamLead.id },
   });
 
-  // 8. Create a Sample Project
+  // 9. Create a Sample Project
   await prisma.project.create({
     data: {
+      id: crypto.randomUUID(),
       name: 'Q1 Execution Excellence',
       description: 'Main project for the first quarter throughput optimization.',
       managerId: manager.id,
-      status: 'active'
-    }
+      status: 'active',
+      organizationId: org.id,
+    },
   });
 
-  console.log('Seed completed successfully! 🚀');
+  console.log('Seed completed!');
+  console.log('Login with: admin@acme.com / password123');
 }
 
 main()

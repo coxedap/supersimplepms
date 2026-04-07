@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import { AuthRequest } from './shared/middleware/auth.middleware';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { authMiddleware } from './shared/middleware/auth.middleware';
@@ -58,43 +59,45 @@ app.post('/api/auth/logout', (_req: Request, res: Response) => {
   res.clearCookie('token', { httpOnly: true, sameSite: 'lax' });
   res.json({ message: 'Logged out' });
 });
+app.post('/api/auth/invite/accept', (req: Request, res: Response) => userController.acceptInvite(req, res));
 
 // All routes below require a valid JWT
 app.use(authMiddleware);
 
-app.get('/api/users', (req: Request, res: Response) => userController.listAll(req, res));
-app.patch('/api/users/:id/role', (req: Request, res: Response) => userController.updateRole(req, res));
-app.patch('/api/users/:id/team', (req: Request, res: Response) => userController.updateTeam(req, res));
-app.patch('/api/users/:id/limits', (req: Request, res: Response) => userController.updateLimits(req, res));
-app.patch('/api/users/:id/status', (req: Request, res: Response) => userController.updateStatus(req, res));
+app.get('/api/users', (req: AuthRequest, res: Response) => userController.listAll(req, res));
+app.post('/api/users/invite', (req: AuthRequest, res: Response) => userController.inviteMember(req, res));
+app.patch('/api/users/:id/role', (req: AuthRequest, res: Response) => userController.updateRole(req, res));
+app.patch('/api/users/:id/team', (req: AuthRequest, res: Response) => userController.updateTeam(req, res));
+app.patch('/api/users/:id/limits', (req: AuthRequest, res: Response) => userController.updateLimits(req, res));
+app.patch('/api/users/:id/status', (req: AuthRequest, res: Response) => userController.updateStatus(req, res));
 
 // Project Routes
-app.post('/api/projects', (req: Request, res: Response) => projectController.create(req, res));
-app.get('/api/projects', (req: Request, res: Response) => projectController.list(req, res));
-app.get('/api/projects/:id', (req: Request, res: Response) => projectController.get(req, res));
-app.put('/api/projects/:id', (req: Request, res: Response) => projectController.update(req, res));
+app.post('/api/projects', (req: AuthRequest, res: Response) => projectController.create(req, res));
+app.get('/api/projects', (req: AuthRequest, res: Response) => projectController.list(req, res));
+app.get('/api/projects/:id', (req: AuthRequest, res: Response) => projectController.get(req, res));
+app.put('/api/projects/:id', (req: AuthRequest, res: Response) => projectController.update(req, res));
 
 // Team Routes
-app.post('/api/teams', (req: Request, res: Response) => teamController.create(req, res));
-app.get('/api/teams', (req: Request, res: Response) => teamController.list(req, res));
-app.patch('/api/teams/:id', (req: Request, res: Response) => teamController.update(req, res));
-app.post('/api/teams/members', (req: Request, res: Response) => teamController.addMember(req, res));
-app.delete('/api/teams/:teamId/members/:userId', (req: Request, res: Response) => teamController.removeMember(req, res));
+app.post('/api/teams', (req: AuthRequest, res: Response) => teamController.create(req, res));
+app.get('/api/teams', (req: AuthRequest, res: Response) => teamController.list(req, res));
+app.patch('/api/teams/:id', (req: AuthRequest, res: Response) => teamController.update(req, res));
+app.post('/api/teams/members', (req: AuthRequest, res: Response) => teamController.addMember(req, res));
+app.delete('/api/teams/:teamId/members/:userId', (req: AuthRequest, res: Response) => teamController.removeMember(req, res));
 
 // Dashboard Routes
-app.get('/api/dashboard/focus/:userId', (req: Request, res: Response) => dashboardController.getFocus(req, res));
-app.get('/api/dashboard/team', (req: Request, res: Response) => dashboardController.getTeam(req, res));
+app.get('/api/dashboard/focus/:userId', (req: AuthRequest, res: Response) => dashboardController.getFocus(req, res));
+app.get('/api/dashboard/team', (req: AuthRequest, res: Response) => dashboardController.getTeam(req, res));
 
 // Task Routes
-app.post('/api/tasks', (req: Request, res: Response) => taskController.create(req, res));
-app.put('/api/tasks/:id', (req: Request, res: Response) => taskController.update(req, res));
-app.patch('/api/tasks/:id/status', (req: Request, res: Response) => taskController.changeStatus(req, res));
-app.get('/api/tasks/owner/:ownerId', (req: Request, res: Response) => taskController.listByOwner(req, res));
-app.delete('/api/tasks/:id', (req: Request, res: Response) => taskController.delete(req, res));
-app.post('/api/tasks/system/check-overdue', (req: Request, res: Response) => taskController.triggerOverdueCheck(req, res));
+app.post('/api/tasks', (req: AuthRequest, res: Response) => taskController.create(req, res));
+app.put('/api/tasks/:id', (req: AuthRequest, res: Response) => taskController.update(req, res));
+app.patch('/api/tasks/:id/status', (req: AuthRequest, res: Response) => taskController.changeStatus(req, res));
+app.get('/api/tasks/owner/:ownerId', (req: AuthRequest, res: Response) => taskController.listByOwner(req, res));
+app.delete('/api/tasks/:id', (req: AuthRequest, res: Response) => taskController.delete(req, res));
+app.post('/api/tasks/system/check-overdue', (req: AuthRequest, res: Response) => taskController.triggerOverdueCheck(req, res));
 
 // Metrics Routes
-app.get('/api/metrics/weekly/:userId', (req: Request, res: Response) => metricsController.getWeeklyMetrics(req, res));
+app.get('/api/metrics/weekly/:userId', (req: AuthRequest, res: Response) => metricsController.getWeeklyMetrics(req, res));
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));

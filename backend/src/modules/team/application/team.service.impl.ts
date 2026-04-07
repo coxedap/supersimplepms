@@ -1,6 +1,7 @@
 import { Team } from "../domain/team.entity";
 import { CreateTeamDTO, UpdateTeamDTO, TeamRepository, TeamService, AddMemberDTO, RemoveMemberDTO } from "./team.service.interface";
 import { NotFoundError, ValidationError } from "../../../shared/errors/base.errors";
+import crypto from 'crypto';
 
 export class TeamServiceImpl implements TeamService {
   constructor(
@@ -23,10 +24,17 @@ export class TeamServiceImpl implements TeamService {
       id: crypto.randomUUID(),
       name: data.name,
       leaderId: data.leaderId,
+      organizationId: data.organizationId,
       createdAt: new Date()
     });
 
     await this.teamRepo.save(team);
+
+    // Auto-add leader as a member
+    if (data.leaderId) {
+      await this.teamRepo.addMember(team.getProps().id, data.leaderId);
+    }
+
     return team;
   }
 
@@ -54,6 +62,7 @@ export class TeamServiceImpl implements TeamService {
       id: current.id,
       name: data.name ?? current.name,
       leaderId: data.leaderId !== undefined ? (data.leaderId ?? undefined) : current.leaderId,
+      organizationId: current.organizationId,
       createdAt: current.createdAt,
     });
 
@@ -79,6 +88,10 @@ export class TeamServiceImpl implements TeamService {
 
     const userToAdd = await this.userRepo.findById(data.userId);
     if (!userToAdd) throw new NotFoundError("User", data.userId);
+
+    if (userToAdd.getProps().teamId === data.teamId) {
+      throw new ValidationError("User is already a member of this team");
+    }
 
     await this.teamRepo.addMember(data.teamId, data.userId);
   }
@@ -108,7 +121,7 @@ export class TeamServiceImpl implements TeamService {
     return team;
   }
 
-  public async getAllTeams(): Promise<Team[]> {
-    return this.teamRepo.findAll();
+  public async getAllTeams(organizationId: string): Promise<Team[]> {
+    return this.teamRepo.findAll(organizationId);
   }
 }

@@ -3,7 +3,9 @@ export interface ProjectProps {
   name: string;
   description?: string;
   managerId: string;
+  teamId?: string;
   status: 'active' | 'archived' | 'completed';
+  organizationId: string;
   createdAt: Date;
 }
 

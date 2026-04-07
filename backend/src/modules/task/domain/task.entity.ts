@@ -19,6 +19,7 @@ export interface TaskProps {
   startedAt?: Date;
   createdAt: Date;
   completedAt?: Date;
+  organizationId: string;
 }
 
 export class Task {

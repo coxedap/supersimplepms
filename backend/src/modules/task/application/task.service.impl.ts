@@ -11,10 +11,10 @@ export class TaskServiceImpl implements TaskService {
     private readonly systemService: SystemService
   ) {}
 
-  private async getLimits() {
+  private async getLimits(organizationId: string) {
     return {
-      wipLimit: await this.systemService.getNumberConfig('WIP_LIMIT_PER_USER', 3),
-      p1Limit: await this.systemService.getNumberConfig('P1_LIMIT_PER_USER', 1)
+      wipLimit: await this.systemService.getNumberConfig(organizationId, 'WIP_LIMIT_PER_USER', 3),
+      p1Limit: await this.systemService.getNumberConfig(organizationId, 'P1_LIMIT_PER_USER', 1)
     };
   }
 
@@ -29,7 +29,7 @@ export class TaskServiceImpl implements TaskService {
     const user = await this.userRepo.findById(data.ownerId);
     if (!user) throw new NotFoundError("User", data.ownerId);
 
-    const { wipLimit, p1Limit } = await this.getLimits();
+    const { wipLimit, p1Limit } = await this.getLimits(data.organizationId);
 
     const activeCount = await this.taskRepo.countActiveByOwner(data.ownerId);
     if (activeCount >= wipLimit) {
@@ -53,7 +53,8 @@ export class TaskServiceImpl implements TaskService {
       deadline: new Date(data.deadline),
       estimatedEffort: data.estimatedEffort,
       status: 'TODO',
-      createdAt: new Date()
+      createdAt: new Date(),
+      organizationId: data.organizationId,
     });
 
     await this.taskRepo.save(task);
@@ -81,7 +82,7 @@ export class TaskServiceImpl implements TaskService {
 
     // If reassigned to a new owner, check limits for the NEW owner
     if (data.ownerId && data.ownerId !== props.ownerId) {
-      const { wipLimit, p1Limit } = await this.getLimits();
+      const { wipLimit, p1Limit } = await this.getLimits(props.organizationId);
       const activeCount = await this.taskRepo.countActiveByOwner(data.ownerId);
       if (activeCount >= wipLimit) {
         throw new ValidationError(`New owner has reached WIP limit of ${wipLimit}`);
@@ -94,7 +95,7 @@ export class TaskServiceImpl implements TaskService {
       }
     } else if (data.priority === 'P1' && props.priority !== 'P1') {
       // If priority upgraded to P1 but owner is the same, check P1 limit for current owner
-      const { p1Limit } = await this.getLimits();
+      const { p1Limit } = await this.getLimits(props.organizationId);
       const p1Count = await this.taskRepo.countP1ByOwner(props.ownerId);
       if (p1Count >= p1Limit) {
         throw new ValidationError(`User has reached P1 limit of ${p1Limit}`);
@@ -128,7 +129,7 @@ export class TaskServiceImpl implements TaskService {
     const props = task.getProps();
     
     if (newStatus === 'DOING' && props.status !== 'DOING') {
-      const { wipLimit } = await this.getLimits();
+      const { wipLimit } = await this.getLimits(props.organizationId);
       const activeCount = await this.taskRepo.countActiveByOwner(props.ownerId);
       if (activeCount >= wipLimit) {
         throw new ValidationError(`User has reached WIP limit of ${wipLimit}`);
@@ -140,8 +141,8 @@ export class TaskServiceImpl implements TaskService {
     return task;
   }
 
-  public async listByOwner(ownerId: string): Promise<Task[]> {
-    return this.taskRepo.listByOwner(ownerId);
+  public async listByOwner(ownerId: string, organizationId: string): Promise<Task[]> {
+    return this.taskRepo.listByOwner(ownerId, organizationId);
   }
 
   public async processOverdueTasks(): Promise<number> {

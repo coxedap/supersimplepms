@@ -1,12 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUsers } from '../hooks/useUsers';
+import { useUsers, useInviteMember } from '../hooks/useUsers';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { Modal } from '../../../components/Modal';
+
+const ROLES = ['CONTRIBUTOR', 'TEAM_LEAD', 'MANAGER', 'ADMIN'] as const;
 
 export const UserManagementPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: users, isLoading, error } = useUsers();
   const { user: currentUser } = useAuthStore();
+  const inviteMember = useInviteMember();
+
+  const [showInvite, setShowInvite] = useState(false);
+  const [form, setForm] = useState({ email: '', role: 'CONTRIBUTOR' });
+  const [formError, setFormError] = useState('');
+
+  const handleInvite = async () => {
+    setFormError('');
+    if (!form.email.trim()) {
+      setFormError('Email is required.');
+      return;
+    }
+    try {
+      await inviteMember.mutateAsync(form);
+      setShowInvite(false);
+      setForm({ email: '', role: 'CONTRIBUTOR' });
+    } catch {
+      // error toast handled in hook
+    }
+  };
 
   if (!currentUser || (currentUser.role !== 'MANAGER' && currentUser.role !== 'ADMIN')) {
     return (
@@ -23,9 +46,17 @@ export const UserManagementPage: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-8">
-          <header className="mb-8">
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Users Management</h1>
-            <p className="text-sm text-gray-500 font-medium mt-2">Manage user roles, limits, and team assignments</p>
+          <header className="mb-8 flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tight">Users Management</h1>
+              <p className="text-sm text-gray-500 font-medium mt-2">Manage user roles, limits, and team assignments</p>
+            </div>
+            <button
+              onClick={() => { setFormError(''); setShowInvite(true); }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors"
+            >
+              + Invite Member
+            </button>
           </header>
           {isLoading && (
             <div className="text-center py-12">
@@ -109,6 +140,58 @@ export const UserManagementPage: React.FC = () => {
           )}
         </div>
       </div>
+      <Modal
+        isOpen={showInvite}
+        onClose={() => setShowInvite(false)}
+        title="Invite Member"
+        footer={
+          <>
+            <button
+              onClick={() => setShowInvite(false)}
+              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold text-sm hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleInvite}
+              disabled={inviteMember.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {inviteMember.isPending ? 'Inviting...' : 'Invite'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {formError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-700 text-sm">{formError}</p>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="jane@example.com"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Role</label>
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

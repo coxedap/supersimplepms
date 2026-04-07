@@ -90,7 +90,8 @@ export class MetricsService {
         tasksCompleted,
         onTimeRate,
         avgCycleTime: avgCycleTimeHours,
-        blockedTimeRatio
+        blockedTimeRatio,
+        organizationId: userExists.organizationId,
       }
     });
 

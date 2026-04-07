@@ -22,6 +22,7 @@ export class PrismaTaskRepository implements TaskRepository {
       startedAt: model.startedAt || undefined,
       createdAt: model.createdAt,
       completedAt: model.completedAt || undefined,
+      organizationId: model.organizationId,
     });
   }
 
@@ -44,6 +45,7 @@ export class PrismaTaskRepository implements TaskRepository {
         deadline: props.deadline,
         estimatedEffort: props.estimatedEffort,
         createdAt: props.createdAt,
+        organizationId: props.organizationId,
       }
     });
   }
@@ -74,8 +76,8 @@ export class PrismaTaskRepository implements TaskRepository {
     await this.prisma.task.delete({ where: { id } });
   }
 
-  public async listByOwner(ownerId: string): Promise<Task[]> {
-    const models = await this.prisma.task.findMany({ where: { ownerId } });
+  public async listByOwner(ownerId: string, organizationId: string): Promise<Task[]> {
+    const models = await this.prisma.task.findMany({ where: { ownerId, organizationId } });
     return models.map(m => this.mapToDomain(m));
   }
 

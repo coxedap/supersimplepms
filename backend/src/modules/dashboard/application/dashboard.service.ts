@@ -1,6 +1,7 @@
 import { PrismaClient, TaskStatus } from "@prisma/client";
-import { Request, Response } from "express";
+import { Response } from "express";
 import { SystemService } from "../../system/application/system.service";
+import { AuthRequest } from "../../../shared/middleware/auth.middleware";
 
 export interface RiskLevel {
   level: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -51,11 +52,14 @@ export class DashboardService {
   }
 
   public async getFocusDashboard(userId: string): Promise<FocusDashboardData> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const organizationId = user?.organizationId ?? '';
+
     const tasks = await this.prisma.task.findMany({
-      where: { ownerId: userId, status: { not: 'DONE' } },
+      where: { ownerId: userId, organizationId, status: { not: 'DONE' } },
     });
 
-    const wipLimit = await this.systemService.getNumberConfig('WIP_LIMIT_PER_USER', 3);
+    const wipLimit = await this.systemService.getNumberConfig(organizationId, 'WIP_LIMIT_PER_USER', 3);
 
     const tasksWithRisk = tasks.map(t => ({
       ...t,
@@ -72,8 +76,9 @@ export class DashboardService {
     };
   }
 
-  public async getTeamDashboard(): Promise<TeamDashboardData> {
+  public async getTeamDashboard(organizationId: string): Promise<TeamDashboardData> {
     const tasks = await this.prisma.task.findMany({
+      where: { organizationId },
       include: { owner: true, project: true } as any
     });
 
@@ -96,7 +101,7 @@ export class DashboardService {
     });
 
     // Find overloaded users (WIP >= limit)
-    const wipLimit = await this.systemService.getNumberConfig('WIP_LIMIT_PER_USER', 3);
+    const wipLimit = await this.systemService.getNumberConfig(organizationId, 'WIP_LIMIT_PER_USER', 3);
     const userWipMap = new Map();
     tasks.filter((t: any) => t.status === 'DOING').forEach((t: any) => {
       userWipMap.set(t.ownerId, (userWipMap.get(t.ownerId) || 0) + 1);
@@ -113,7 +118,7 @@ export class DashboardService {
 
     // Project Health
     const projectMap = new Map();
-    const activeProjects = await this.prisma.project.findMany({ where: { status: 'active' } });
+    const activeProjects = await this.prisma.project.findMany({ where: { status: 'active', organizationId } });
     
     activeProjects.forEach((p: any) => {
       projectMap.set(p.id, {
@@ -154,7 +159,7 @@ export class DashboardService {
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  public async getFocus(req: Request, res: Response): Promise<void> {
+  public async getFocus(req: AuthRequest, res: Response): Promise<void> {
     try {
       const data = await this.dashboardService.getFocusDashboard(req.params.userId);
       res.json(data);
@@ -163,9 +168,9 @@ export class DashboardController {
     }
   }
 
-  public async getTeam(req: Request, res: Response): Promise<void> {
+  public async getTeam(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const data = await this.dashboardService.getTeamDashboard();
+      const data = await this.dashboardService.getTeamDashboard(req.user!.organizationId);
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
