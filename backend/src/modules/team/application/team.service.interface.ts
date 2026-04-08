@@ -3,7 +3,8 @@ import { Team } from "../domain/team.entity";
 export interface CreateTeamDTO {
   name: string;
   leaderId?: string;
-  creatorId: string; // must be ADMIN
+  creatorId: string;
+  organizationId: string;
 }
 
 export interface AddMemberDTO {
@@ -16,7 +17,7 @@ export interface TeamRepository {
   findById(id: string): Promise<Team | null>;
   save(team: Team): Promise<void>;
   update(team: Team): Promise<void>;
-  findAll(): Promise<Team[]>;
+  findAll(organizationId: string): Promise<Team[]>;
   addMember(teamId: string, userId: string): Promise<void>;
   removeMember(teamId: string, userId: string): Promise<void>;
 }
@@ -39,5 +40,5 @@ export interface TeamService {
   addMember(data: AddMemberDTO): Promise<void>;
   removeMember(data: RemoveMemberDTO): Promise<void>;
   getTeam(id: string): Promise<Team>;
-  getAllTeams(): Promise<Team[]>;
+  getAllTeams(organizationId: string): Promise<Team[]>;
 }

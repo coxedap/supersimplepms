@@ -2,6 +2,7 @@ export interface TeamProps {
   id: string;
   name: string;
   leaderId?: string;
+  organizationId: string;
   createdAt: Date;
 }
 

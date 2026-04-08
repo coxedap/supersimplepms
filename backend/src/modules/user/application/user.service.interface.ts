@@ -1,9 +1,10 @@
-import { User, UserProps } from "../domain/user.entity";
+import { User } from "../domain/user.entity";
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
-  findAll(): Promise<User[]>;
-  save(user: User): Promise<void>;
+  findByEmail(email: string): Promise<(User & { passwordHash: string }) | null>;
+  findAll(organizationId: string): Promise<User[]>;
+  save(user: User, passwordHash: string): Promise<void>;
   update(user: User): Promise<void>;
 }
 
@@ -28,10 +29,40 @@ export interface UpdateStatusDTO {
   status: 'active' | 'inactive';
 }
 
+export interface RegisterDTO {
+  name: string;
+  email: string;
+  password: string;
+  organizationName: string;
+}
+
+/** Creates an invite record and sends an email link — no password set yet */
+export interface InviteMemberDTO {
+  email: string;
+  role: string;
+  organizationId: string;
+  requesterId: string;
+}
+
+/** Accepts an invite link — user supplies their name and password */
+export interface AcceptInviteDTO {
+  token: string;
+  name: string;
+  password: string;
+}
+
+export interface LoginDTO {
+  email: string;
+  password: string;
+}
+
 export interface UserService {
   getUser(id: string): Promise<User>;
-  getAllUsers(): Promise<User[]>;
-  register(data: { name: string; role: string; team: string }): Promise<User>;
+  getAllUsers(organizationId: string): Promise<User[]>;
+  login(dto: LoginDTO): Promise<User>;
+  register(dto: RegisterDTO): Promise<User>;
+  inviteMember(dto: InviteMemberDTO): Promise<void>;
+  acceptInvite(dto: AcceptInviteDTO): Promise<User>;
   updateRole(userId: string, dto: UpdateRoleDTO): Promise<User>;
   updateTeam(userId: string, dto: UpdateTeamDTO): Promise<User>;
   updateLimits(userId: string, dto: UpdateLimitsDTO): Promise<User>;

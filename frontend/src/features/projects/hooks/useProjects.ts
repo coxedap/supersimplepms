@@ -7,6 +7,7 @@ export interface ProjectRecord {
   name: string;
   description?: string;
   managerId: string;
+  teamId?: string;
   status: 'active' | 'archived' | 'completed';
   createdAt: string;
 }
@@ -32,14 +33,16 @@ export function useCreateProject() {
       name,
       description,
       managerId,
+      teamId,
       creatorId,
     }: {
       name: string;
       description?: string;
       managerId: string;
+      teamId?: string;
       creatorId: string;
     }) =>
-      api.post('/projects', { name, description, managerId, creatorId }).then((r) => r.data),
+      api.post('/projects', { name, description, managerId, teamId, creatorId }).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PROJECTS_KEY });
       addToast('Project created successfully', 'success');
@@ -60,6 +63,7 @@ export function useUpdateProject() {
       name,
       description,
       managerId,
+      teamId,
       status,
       requesterId,
     }: {
@@ -67,11 +71,12 @@ export function useUpdateProject() {
       name?: string;
       description?: string;
       managerId?: string;
+      teamId?: string | null;
       status?: 'active' | 'archived' | 'completed';
       requesterId: string;
     }) =>
       api
-        .put(`/projects/${id}`, { name, description, managerId, status, requesterId })
+        .put(`/projects/${id}`, { name, description, managerId, teamId, status, requesterId })
         .then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PROJECTS_KEY });

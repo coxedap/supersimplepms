@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 
 export interface AuthRequest extends Request {
-  user?: { userId: string; role: string };
+  user?: { userId: string; role: string; organizationId: string };
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {

@@ -104,7 +104,7 @@ export const TeamsPage: React.FC = () => {
     leaderId ? (users?.find((u) => u.id === leaderId)?.name ?? leaderId) : '—';
 
   const availableToAdd = managingTeam
-    ? users?.filter((u) => u.teamId !== managingTeam.id) ?? []
+    ? users?.filter((u) => u.teamId !== managingTeam.id && u.id !== managingTeam.leaderId) ?? []
     : [];
 
   return (

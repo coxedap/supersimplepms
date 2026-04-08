@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProjects, useCreateProject, useUpdateProject, ProjectRecord } from '../hooks/useProjects';
 import { useUsers } from '../../users/hooks/useUsers';
+import { useTeams } from '../../teams/hooks/useTeams';
 import { useAuthStore } from '../../../store/useAuthStore';
 
 const STATUS_STYLES: Record<ProjectRecord['status'], string> = {
@@ -9,12 +10,13 @@ const STATUS_STYLES: Record<ProjectRecord['status'], string> = {
   archived: 'bg-gray-100 text-gray-600',
 };
 
-const BLANK_FORM = { name: '', description: '', managerId: '' };
+const BLANK_FORM = { name: '', description: '', managerId: '', teamId: '' };
 
 export const ProjectsPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const { data: projects, isLoading, error } = useProjects();
   const { data: users } = useUsers();
+  const { data: teams } = useTeams();
 
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -27,8 +29,9 @@ export const ProjectsPage: React.FC = () => {
     name: string;
     description: string;
     managerId: string;
+    teamId: string;
     status: ProjectRecord['status'];
-  }>({ name: '', description: '', managerId: '', status: 'active' });
+  }>({ name: '', description: '', managerId: '', teamId: '', status: 'active' });
 
   const canCreate = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
@@ -46,12 +49,16 @@ export const ProjectsPage: React.FC = () => {
   const getManagerName = (managerId: string) =>
     users?.find((u) => u.id === managerId)?.name ?? managerId;
 
+  const getTeamName = (teamId?: string) =>
+    teamId ? (teams?.find((t) => t.id === teamId)?.name ?? '—') : '—';
+
   const handleCreate = async () => {
     if (!form.name.trim() || !form.managerId || !currentUser) return;
     await createProject.mutateAsync({
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       managerId: form.managerId,
+      teamId: form.teamId || undefined,
       creatorId: currentUser.id,
     });
     setForm(BLANK_FORM);
@@ -64,6 +71,7 @@ export const ProjectsPage: React.FC = () => {
       name: project.name,
       description: project.description ?? '',
       managerId: project.managerId,
+      teamId: project.teamId ?? '',
       status: project.status,
     });
   };
@@ -75,6 +83,7 @@ export const ProjectsPage: React.FC = () => {
       name: editForm.name.trim() || undefined,
       description: editForm.description.trim() || undefined,
       managerId: editForm.managerId || undefined,
+      teamId: editForm.teamId || null,
       status: editForm.status,
       requesterId: currentUser.id,
     });
@@ -126,6 +135,7 @@ export const ProjectsPage: React.FC = () => {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-bold text-gray-700 text-sm">Name</th>
+                    <th className="text-left py-3 px-4 font-bold text-gray-700 text-sm">Team</th>
                     <th className="text-left py-3 px-4 font-bold text-gray-700 text-sm">Description</th>
                     <th className="text-left py-3 px-4 font-bold text-gray-700 text-sm">Manager</th>
                     <th className="text-left py-3 px-4 font-bold text-gray-700 text-sm">Status</th>
@@ -139,6 +149,7 @@ export const ProjectsPage: React.FC = () => {
                   {projects.map((project) => (
                     <tr key={project.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                       <td className="py-3 px-4 text-sm font-medium text-gray-900">{project.name}</td>
+                      <td className="py-3 px-4 text-sm text-gray-600">{getTeamName(project.teamId)}</td>
                       <td className="py-3 px-4 text-sm text-gray-500 max-w-xs truncate">
                         {project.description || '—'}
                       </td>
@@ -212,6 +223,21 @@ export const ProjectsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">
+                  Team (optional)
+                </label>
+                <select
+                  value={form.teamId}
+                  onChange={(e) => setForm((f) => ({ ...f, teamId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— No team —</option>
+                  {teams?.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">
                   Manager *
                 </label>
                 <select
@@ -282,6 +308,21 @@ export const ProjectsPage: React.FC = () => {
                   rows={3}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">
+                  Team
+                </label>
+                <select
+                  value={editForm.teamId}
+                  onChange={(e) => setEditForm((f) => ({ ...f, teamId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— No team —</option>
+                  {teams?.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">

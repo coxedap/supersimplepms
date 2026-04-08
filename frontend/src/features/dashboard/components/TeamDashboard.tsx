@@ -7,6 +7,8 @@ import { TaskItem } from '../../tasks/components/TaskItem';
 import { useUpdateTaskStatus } from '../../tasks/hooks/useTasks';
 import { TaskStatus } from '../../tasks/types';
 import { BlockReasonModal } from '../../../components/BlockReasonModal';
+import { CreateTaskModal } from '../../tasks/components/CreateTaskModal';
+import { useProjects } from '../../projects/hooks/useProjects';
 
 export const TeamDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -20,6 +22,9 @@ export const TeamDashboard: React.FC = () => {
   const [pendingBlockTaskId, setPendingBlockTaskId] = useState<string | null>(null);
 
   const selectedTask = data?.allTeamTasks.find(t => t.id === selectedTaskId) || null;
+  const { data: projects } = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   if (isLoading) return <div className="flex justify-center p-12">Loading team data...</div>;
   if (error) return <div className="text-red-500 p-12 text-center">Error loading team dashboard</div>;
@@ -149,17 +154,45 @@ export const TeamDashboard: React.FC = () => {
 
       {/* Team Task Board for Managers */}
       <section className="mt-12">
-        <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider mb-6 flex items-center">
-          <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
-          Team-Wide Execution Board
-        </h3>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider flex items-center">
+            <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+            Team-Wide Execution Board
+          </h3>
+          <div className="flex items-center gap-3">
+            {projects && projects.length > 0 && (
+              <select
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Projects</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+            {canEdit && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all flex items-center"
+              >
+                <span className="mr-2">+</span> New Task
+              </button>
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {([
             { title: 'Todo',              statuses: ['TODO']              as TaskStatus[], dropTarget: 'TODO'    as TaskStatus },
             { title: 'In Progress',       statuses: ['DOING']             as TaskStatus[], dropTarget: 'DOING'   as TaskStatus },
             { title: 'Blocked & Overdue', statuses: ['BLOCKED', 'OVERDUE'] as TaskStatus[], dropTarget: 'BLOCKED' as TaskStatus },
           ]).map((col) => {
-            const colTasks = data?.allTeamTasks.filter(t => col.statuses.includes(t.status)) ?? [];
+            const allColTasks = data?.allTeamTasks ?? [];
+            const filtered = selectedProjectId
+              ? allColTasks.filter(t => t.projectId === selectedProjectId)
+              : allColTasks;
+            const colTasks = filtered.filter(t => col.statuses.includes(t.status));
             const isOver = overColumn === col.dropTarget;
             return (
               <div key={col.title} className="flex flex-col space-y-4">
@@ -335,6 +368,11 @@ export const TeamDashboard: React.FC = () => {
           setPendingBlockTaskId(null);
         }}
         onCancel={() => setPendingBlockTaskId(null)}
+      />
+
+      <CreateTaskModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
       />
     </div>
   );

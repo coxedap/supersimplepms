@@ -106,6 +106,28 @@ export function useUpdateUserLimits() {
   });
 }
 
+export function useInviteMember() {
+  const qc = useQueryClient();
+  const addToast = useToastStore((state) => state.addToast);
+
+  return useMutation({
+    mutationFn: ({
+      email,
+      role,
+    }: {
+      email: string;
+      role: string;
+    }) => api.post('/users/invite', { email, role }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+      addToast('Member invited successfully', 'success');
+    },
+    onError: (err: any) => {
+      addToast(err?.response?.data?.error ?? 'Failed to invite member', 'error');
+    },
+  });
+}
+
 export function useUpdateUserStatus() {
   const qc = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);

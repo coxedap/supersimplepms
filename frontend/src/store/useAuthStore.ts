@@ -7,7 +7,9 @@ export type Role = 'CONTRIBUTOR' | 'TEAM_LEAD' | 'MANAGER' | 'ADMIN';
 interface User {
   id: string;
   name: string;
+  email: string;
   role: Role;
+  organizationId: string;
   teamId?: string;
   team?: string;
   wipLimit: number;

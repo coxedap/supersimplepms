@@ -1,6 +1,7 @@
 import { Project, ProjectProps } from "../domain/project.entity";
 import { CreateProjectDTO, ProjectRepository, ProjectService, UpdateProjectDTO } from "./project.service.interface";
 import { NotFoundError, ValidationError } from "../../../shared/errors/base.errors";
+import crypto from 'crypto';
 
 export class ProjectServiceImpl implements ProjectService {
   constructor(
@@ -23,7 +24,9 @@ export class ProjectServiceImpl implements ProjectService {
       name: data.name,
       description: data.description,
       managerId: data.managerId,
+      teamId: data.teamId,
       status: 'active',
+      organizationId: data.organizationId,
       createdAt: new Date()
     });
 
@@ -43,8 +46,10 @@ export class ProjectServiceImpl implements ProjectService {
     const props = project.getProps();
     const updatedProject = new Project({
       ...props,
-      ...data,
+      name: data.name || props.name,
+      description: data.description ?? props.description,
       managerId: data.managerId || props.managerId,
+      teamId: data.teamId !== undefined ? (data.teamId ?? undefined) : props.teamId,
       status: data.status || props.status,
     });
 
@@ -58,7 +63,7 @@ export class ProjectServiceImpl implements ProjectService {
     return project;
   }
 
-  public async getAllProjects(): Promise<Project[]> {
-    return this.projectRepo.findAll();
+  public async getAllProjects(organizationId: string): Promise<Project[]> {
+    return this.projectRepo.findAll(organizationId);
   }
 }

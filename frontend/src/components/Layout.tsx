@@ -10,6 +10,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const canAccessUserManagement = user && (user.role === 'MANAGER' || user.role === 'ADMIN');
   const canAccessTeams = user && user.role !== 'CONTRIBUTOR';
   const canAccessProjects = user && user.role !== 'CONTRIBUTOR';
+  const canViewTeamHealth = user && (user.role === 'ADMIN' || user.role === 'MANAGER');
 
   // Determine current section based on URL path
   const currentSection = location.pathname.startsWith('/users')
@@ -18,7 +19,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     ? 'teams'
     : location.pathname.startsWith('/projects')
     ? 'projects'
-    : 'pms';
+    : location.pathname.startsWith('/team-health')
+    ? 'team-health'
+    : location.pathname.startsWith('/workspace') || location.pathname === '/'
+    ? 'workspace'
+    : 'workspace';
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -83,15 +88,27 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         >
           <div className="p-4 space-y-2 overflow-y-auto h-full">
             <button
-              onClick={() => handleNavigate('/')}
+              onClick={() => handleNavigate('/workspace')}
               className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                currentSection === 'pms'
+                currentSection === 'workspace'
                   ? 'bg-blue-50 text-blue-600 border border-blue-200'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              🏠 Home
+              🏠 My Workspace
             </button>
+            {canViewTeamHealth && (
+              <button
+                onClick={() => handleNavigate('/team-health')}
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  currentSection === 'team-health'
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                📊 Team Health
+              </button>
+            )}
             {canAccessUserManagement && (
               <button
                 onClick={() => handleNavigate('/users')}
@@ -140,7 +157,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <footer className="bg-white py-6 border-t border-gray-50">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-xs text-gray-400 font-medium">
-            &copy; 2026 PMS 0.1 • Internal Tooling
+            &copy; 2026 PMS 0.1
           </p>
         </div>
       </footer>
