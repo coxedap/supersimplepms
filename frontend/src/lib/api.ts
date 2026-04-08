@@ -3,7 +3,7 @@ import { useToastStore } from '../store/useToastStore';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true, // send httpOnly cookie on every request
 });
 

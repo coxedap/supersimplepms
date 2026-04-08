@@ -1,5 +1,4 @@
 import express, { Request, Response, NextFunction } from 'express';
-import path from 'path';
 import { AuthRequest } from './shared/middleware/auth.middleware';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -24,7 +23,10 @@ import { SystemService } from './modules/system/application/system.service';
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -102,15 +104,6 @@ app.get('/api/metrics/weekly/:userId', (req: AuthRequest, res: Response) => metr
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));
-
-// Serve React frontend in production (must be after all API routes)
-if (process.env.NODE_ENV === 'production') {
-  const frontendDist = path.join(__dirname, '../../frontend/dist');
-  app.use(express.static(frontendDist));
-  app.get('*', (_req: Request, res: Response) => {
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-}
 
 // Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
