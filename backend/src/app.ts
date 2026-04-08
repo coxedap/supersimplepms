@@ -55,6 +55,9 @@ const taskController = new TaskController(taskService);
 const metricsService = new MetricsService(prisma);
 const metricsController = new MetricsController(metricsService);
 
+// Health check (public)
+app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));
+
 // Public routes (no auth required)
 app.post('/api/auth/login', (req: Request, res: Response) => userController.login(req, res));
 app.post('/api/auth/register', (req: Request, res: Response) => userController.register(req, res));
@@ -101,9 +104,6 @@ app.post('/api/tasks/system/check-overdue', (req: AuthRequest, res: Response) =>
 
 // Metrics Routes
 app.get('/api/metrics/weekly/:userId', (req: AuthRequest, res: Response) => metricsController.getWeeklyMetrics(req, res));
-
-// Health check
-app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));
 
 // Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
