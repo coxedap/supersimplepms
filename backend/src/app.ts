@@ -64,6 +64,15 @@ app.post('/api/auth/logout', (_req: Request, res: Response) => {
 });
 app.post('/api/auth/invite/accept', (req: Request, res: Response) => userController.acceptInvite(req, res));
 
+// 404 for unmatched public routes before auth
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith('/api/')) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  next();
+});
+
 // All routes below require a valid JWT
 app.use(authMiddleware);
 

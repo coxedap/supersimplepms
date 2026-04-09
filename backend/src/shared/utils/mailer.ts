@@ -1,17 +1,5 @@
-import nodemailer from 'nodemailer';
-
-const DEV_MODE = !process.env.SMTP_HOST;
-
-const transporter = DEV_MODE
-  ? null
-  : nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT ?? 587),
-      secure: process.env.SMTP_SECURE === 'true',
-      ...(process.env.SMTP_USER
-        ? { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }
-        : {}),
-    });
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const DEV_MODE = !RESEND_API_KEY;
 
 export async function sendInviteEmail(opts: {
   to: string;
@@ -31,18 +19,27 @@ export async function sendInviteEmail(opts: {
   `;
 
   if (DEV_MODE) {
-    console.log('\n========== INVITE EMAIL (dev mode — no SMTP configured) ==========');
+    console.log('\n========== INVITE EMAIL (dev mode — no RESEND_API_KEY configured) ==========');
     console.log(`TO:      ${to}`);
     console.log(`SUBJECT: ${subject}`);
     console.log(`LINK:    ${inviteUrl}`);
-    console.log('===================================================================\n');
+    console.log('==============================================================================\n');
     return;
   }
 
-  await transporter!.sendMail({
-    from: process.env.SMTP_FROM ?? 'noreply@pms.app',
-    to,
-    subject,
-    html,
+  const from = process.env.SMTP_FROM ?? 'onboarding@resend.dev';
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from, to, subject, html }),
   });
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Resend API error: ${res.status} ${error}`);
+  }
 }

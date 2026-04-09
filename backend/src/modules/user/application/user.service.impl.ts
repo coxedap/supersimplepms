@@ -129,12 +129,12 @@ export class UserServiceImpl implements UserService {
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
     const inviteUrl = `${appUrl}/invite/accept?token=${token}`;
 
-    await sendInviteEmail({
+    sendInviteEmail({
       to: dto.email,
       inviterName: requesterProps.name,
       orgName: org?.name ?? 'your organization',
       inviteUrl,
-    });
+    }).catch((err) => console.error('Failed to send invite email:', err));
   }
 
   public async acceptInvite(dto: AcceptInviteDTO): Promise<User> {
