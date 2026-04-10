@@ -1,66 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useToastStore } from '../../../store/useToastStore';
+
+type Step = 'email' | 'password' | 'setup';
 
 interface LoginPageProps {
   onGoToRegister: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [setupData, setSetupData] = useState({ name: '', password: '', confirm: '' });
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [setup, setSetup] = useState({ name: '', password: '', confirm: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [requiresSetup, setRequiresSetup] = useState(false);
-  const [setupEmail, setSetupEmail] = useState('');
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const login = useAuthStore((state) => state.login);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (step === 'password') passwordRef.current?.focus();
+    if (step === 'setup') nameRef.current?.focus();
+  }, [step]);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
     try {
-      const { data } = await api.post('/auth/login', formData);
-      login(data);
-      useToastStore.getState().addToast(`Welcome back, ${data.name}!`, 'success');
-    } catch (err: any) {
-      if (err.response?.data?.code === 'REQUIRES_SETUP') {
-        setSetupEmail(formData.email);
-        setRequiresSetup(true);
+      const { data } = await api.post<{ status: 'active' | 'setup_required' | 'not_found' }>(
+        '/auth/check-email',
+        { email }
+      );
+      if (data.status === 'not_found') {
+        setError('No account found for this email.');
+      } else if (data.status === 'setup_required') {
+        setStep('setup');
       } else {
-        setError(err.response?.data?.error || 'Invalid email or password');
+        setStep('password');
       }
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSetup = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (setupData.password !== setupData.confirm) {
-      setError('Passwords do not match');
-      return;
+    setIsLoading(true);
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      login(data);
+      useToastStore.getState().addToast(`Welcome back, ${data.name}!`, 'success');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Invalid password.');
+    } finally {
+      setIsLoading(false);
     }
-    if (setupData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
+  };
+
+  const handleSetupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!setup.name.trim()) { setError('Name is required.'); return; }
+    if (setup.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (setup.password !== setup.confirm) { setError('Passwords do not match.'); return; }
     setIsLoading(true);
     try {
       const { data } = await api.post('/auth/setup', {
-        email: setupEmail,
-        name: setupData.name,
-        password: setupData.password,
+        email,
+        name: setup.name,
+        password: setup.password,
       });
       login(data);
       useToastStore.getState().addToast(`Welcome, ${data.name}!`, 'success');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to set up account');
+      setError(err.response?.data?.error || 'Failed to set up account.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const goBack = () => {
+    setStep('email');
+    setPassword('');
+    setSetup({ name: '', password: '', confirm: '' });
+    setError('');
   };
 
   return (
@@ -71,7 +100,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">PMS 0.1</h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          {requiresSetup ? 'Set up your account to get started.' : 'Sign in to your workspace.'}
+          {step === 'email' && 'Sign in to your workspace.'}
+          {step === 'password' && 'Enter your password.'}
+          {step === 'setup' && 'Set up your account to get started.'}
         </p>
       </div>
 
@@ -83,42 +114,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
             </div>
           )}
 
-          {requiresSetup ? (
-            <form onSubmit={handleSetup} className="space-y-5">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                Setting up account for <strong>{setupEmail}</strong>
-              </div>
+          {/* Step 1 — Email */}
+          {step === 'email' && (
+            <form onSubmit={handleEmailSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Your Name</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Email</label>
                 <input
                   required
-                  type="text"
-                  placeholder="Jane Smith"
+                  type="email"
+                  autoFocus
+                  placeholder="you@company.com"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  value={setupData.name}
-                  onChange={(e) => setSetupData({ ...setupData, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Password</label>
-                <input
-                  required
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  value={setupData.password}
-                  onChange={(e) => setSetupData({ ...setupData, password: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Confirm Password</label>
-                <input
-                  required
-                  type="password"
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  value={setupData.confirm}
-                  onChange={(e) => setSetupData({ ...setupData, confirm: e.target.value })}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <button
@@ -126,38 +134,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
                 disabled={isLoading}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-200 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50"
               >
-                {isLoading ? 'Setting up...' : 'Activate Account'}
+                {isLoading ? 'Checking...' : 'Continue'}
               </button>
-              <button
-                type="button"
-                onClick={() => { setRequiresSetup(false); setError(''); }}
-                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
-              >
-                Back to login
-              </button>
+              <div className="border-t border-gray-100 pt-5">
+                <button
+                  type="button"
+                  onClick={onGoToRegister}
+                  className="w-full flex justify-center items-center py-3 px-4 border border-gray-200 rounded-xl shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-all"
+                >
+                  + Create a new organization
+                </button>
+              </div>
             </form>
-          ) : (
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Email</label>
-                <input
-                  required
-                  type="email"
-                  placeholder="you@company.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
+          )}
+
+          {/* Step 2a — Password */}
+          {step === 'password' && (
+            <form onSubmit={handlePasswordSubmit} className="space-y-5">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-sm text-gray-700 font-medium truncate">{email}</span>
+                <button type="button" onClick={goBack} className="ml-auto text-xs text-blue-600 font-bold hover:underline whitespace-nowrap">
+                  Change
+                </button>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Password</label>
                 <input
                   required
+                  ref={passwordRef}
                   type="password"
                   placeholder="••••••••"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
               <button
@@ -170,15 +179,58 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onGoToRegister }) => {
             </form>
           )}
 
-          {!requiresSetup && (
-            <div className="mt-6 border-t border-gray-100 pt-6">
+          {/* Step 2b — Setup (inactive user) */}
+          {step === 'setup' && (
+            <form onSubmit={handleSetupSubmit} className="space-y-5">
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <span className="text-sm text-blue-700 font-medium truncate">{email}</span>
+                <button type="button" onClick={goBack} className="ml-auto text-xs text-blue-600 font-bold hover:underline whitespace-nowrap">
+                  Change
+                </button>
+              </div>
+              <p className="text-sm text-gray-500">Your account is ready — just set your name and a password to get started.</p>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Your Name</label>
+                <input
+                  required
+                  ref={nameRef}
+                  type="text"
+                  placeholder="Jane Smith"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  value={setup.name}
+                  onChange={(e) => setSetup({ ...setup, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Password</label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  value={setup.password}
+                  onChange={(e) => setSetup({ ...setup, password: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Confirm Password</label>
+                <input
+                  required
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  value={setup.confirm}
+                  onChange={(e) => setSetup({ ...setup, confirm: e.target.value })}
+                />
+              </div>
               <button
-                onClick={onGoToRegister}
-                className="w-full flex justify-center items-center py-3 px-4 border border-gray-200 rounded-xl shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-all"
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-200 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50"
               >
-                + Create a new organization
+                {isLoading ? 'Setting up...' : 'Activate Account'}
               </button>
-            </div>
+            </form>
           )}
         </div>
       </div>
