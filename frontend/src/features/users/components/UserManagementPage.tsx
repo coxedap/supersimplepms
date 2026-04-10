@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUsers, useInviteMember } from '../hooks/useUsers';
+import { useUsers, useInviteMember, useAddMember, useDeleteMember } from '../hooks/useUsers';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Modal } from '../../../components/Modal';
 
@@ -11,10 +11,30 @@ export const UserManagementPage: React.FC = () => {
   const { data: users, isLoading, error } = useUsers();
   const { user: currentUser } = useAuthStore();
   const inviteMember = useInviteMember();
+  const addMember = useAddMember();
+  const deleteMember = useDeleteMember();
 
   const [showInvite, setShowInvite] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ email: '', role: 'CONTRIBUTOR' });
+  const [addForm, setAddForm] = useState({ email: '', role: 'CONTRIBUTOR' });
   const [formError, setFormError] = useState('');
+  const [addFormError, setAddFormError] = useState('');
+
+  const handleAddMember = async () => {
+    setAddFormError('');
+    if (!addForm.email.trim()) {
+      setAddFormError('Email is required.');
+      return;
+    }
+    try {
+      await addMember.mutateAsync(addForm);
+      setShowAdd(false);
+      setAddForm({ email: '', role: 'CONTRIBUTOR' });
+    } catch {
+      // error toast handled in hook
+    }
+  };
 
   const handleInvite = async () => {
     setFormError('');
@@ -51,12 +71,22 @@ export const UserManagementPage: React.FC = () => {
               <h1 className="text-2xl font-black text-gray-900 tracking-tight">Users Management</h1>
               <p className="text-sm text-gray-500 font-medium mt-2">Manage user roles, limits, and team assignments</p>
             </div>
-            <button
-              onClick={() => { setFormError(''); setShowInvite(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors"
-            >
-              + Invite Member
-            </button>
+            <div className="flex gap-2">
+              {currentUser.role === 'ADMIN' && (
+                <button
+                  onClick={() => { setAddFormError(''); setShowAdd(true); }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 transition-colors"
+                >
+                  + Add Member
+                </button>
+              )}
+              <button
+                onClick={() => { setFormError(''); setShowInvite(true); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors"
+              >
+                + Invite Member
+              </button>
+            </div>
           </header>
           {isLoading && (
             <div className="text-center py-12">
@@ -125,12 +155,26 @@ export const UserManagementPage: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3 px-4 text-sm">
-                        <button
-                          onClick={() => navigate(`/users/${user.id}`)}
-                          className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-bold hover:bg-blue-100 transition-colors text-xs"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/users/${user.id}`)}
+                            className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-bold hover:bg-blue-100 transition-colors text-xs"
+                          >
+                            Edit
+                          </button>
+                          {currentUser.role === 'ADMIN' && user.id !== currentUser.id && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete ${user.name}? This cannot be undone.`)) {
+                                  deleteMember.mutate(user.id);
+                                }
+                              }}
+                              className="px-3 py-1 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-100 transition-colors text-xs"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -140,6 +184,60 @@ export const UserManagementPage: React.FC = () => {
           )}
         </div>
       </div>
+      <Modal
+        isOpen={showAdd}
+        onClose={() => { setShowAdd(false); setAddForm({ email: '', role: 'CONTRIBUTOR' }); }}
+        title="Add Member"
+        footer={
+          <>
+            <button
+              onClick={() => setShowAdd(false)}
+              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold text-sm hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddMember}
+              disabled={addMember.isPending}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {addMember.isPending ? 'Adding...' : 'Add Member'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">The member will log in with their email and set up their own password on first sign-in.</p>
+          {addFormError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-700 text-sm">{addFormError}</p>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Email</label>
+            <input
+              type="email"
+              value={addForm.email}
+              onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+              placeholder="jane@example.com"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Role</label>
+            <select
+              value={addForm.role}
+              onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
+
       <Modal
         isOpen={showInvite}
         onClose={() => setShowInvite(false)}

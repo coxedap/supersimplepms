@@ -67,6 +67,21 @@ export class PrismaUserRepository implements UserRepository {
     });
   }
 
+  public async delete(userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      // Remove weekly metrics
+      await tx.weeklyMetrics.deleteMany({ where: { userId } });
+      // Remove sent invites (invitedById is NOT NULL, can't nullify)
+      await tx.invite.deleteMany({ where: { invitedById: userId } });
+      // Unset team leadership (leaderId is nullable)
+      await tx.team.updateMany({ where: { leaderId: userId }, data: { leaderId: null } });
+      // Delete completed/blocked/overdue tasks owned by user (active tasks already blocked at service level)
+      await tx.task.deleteMany({ where: { ownerId: userId } });
+      // Delete the user
+      await tx.user.delete({ where: { id: userId } });
+    });
+  }
+
   public async update(user: User): Promise<void> {
     const props = user.getProps();
     await this.prisma.user.update({

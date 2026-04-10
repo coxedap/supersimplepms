@@ -9,6 +9,8 @@ import {
   UpdateStatusDTO,
   RegisterDTO,
   LoginDTO,
+  AddMemberDTO,
+  SetupPasswordDTO,
   InviteMemberDTO,
   AcceptInviteDTO,
 } from "./user.service.interface";
@@ -38,6 +40,13 @@ export class UserServiceImpl implements UserService {
   public async login(dto: LoginDTO): Promise<User> {
     const userWithHash = await this.userRepo.findByEmail(dto.email);
     if (!userWithHash) throw new ValidationError("Invalid email or password");
+
+    if (userWithHash.getProps().status === 'inactive') {
+      const err: any = new Error("REQUIRES_SETUP");
+      err.statusCode = 403;
+      err.code = 'REQUIRES_SETUP';
+      throw err;
+    }
 
     const valid = await bcrypt.compare(dto.password, userWithHash.passwordHash);
     if (!valid) throw new ValidationError("Invalid email or password");
@@ -86,6 +95,56 @@ export class UserServiceImpl implements UserService {
 
     await this.userRepo.save(user, passwordHash);
     return user;
+  }
+
+  public async addMember(dto: AddMemberDTO): Promise<void> {
+    const requester = await this.userRepo.findById(dto.requesterId);
+    if (!requester) throw new NotFoundError("User", dto.requesterId);
+    if (requester.getProps().role !== 'ADMIN') {
+      throw new ValidationError("Only ADMIN can directly add members");
+    }
+
+    const existing = await this.userRepo.findByEmail(dto.email);
+    if (existing) throw new ValidationError("Email already in use");
+
+    // Create user as inactive with no password — they set it on first login
+    const user = new User({
+      id: crypto.randomUUID(),
+      name: dto.email.split('@')[0], // placeholder name until they set it
+      email: dto.email,
+      role: dto.role as any,
+      status: 'inactive',
+      organizationId: dto.organizationId,
+      wipLimit: 3,
+      p1Limit: 1,
+    });
+
+    await this.userRepo.save(user, ''); // empty passwordHash — no login until setup
+  }
+
+  public async setupPassword(dto: SetupPasswordDTO): Promise<User> {
+    const userWithHash = await this.userRepo.findByEmail(dto.email);
+    if (!userWithHash) throw new ValidationError("No account found for this email");
+    if (userWithHash.getProps().status !== 'inactive') {
+      throw new ValidationError("Account is already set up. Please log in normally.");
+    }
+
+    if (dto.password.length < 8) throw new ValidationError("Password must be at least 8 characters");
+
+    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const updatedUser = new User({
+      ...userWithHash.getProps(),
+      name: dto.name,
+      status: 'active',
+    });
+
+    await this.userRepo.update(updatedUser);
+    await this.prisma.user.update({
+      where: { id: updatedUser.getProps().id },
+      data: { passwordHash },
+    });
+
+    return updatedUser;
   }
 
   public async inviteMember(dto: InviteMemberDTO): Promise<void> {
@@ -165,6 +224,34 @@ export class UserServiceImpl implements UserService {
     });
 
     return user;
+  }
+
+  public async deleteMember(userId: string, requesterId: string): Promise<void> {
+    const requester = await this.userRepo.findById(requesterId);
+    if (!requester) throw new NotFoundError("User", requesterId);
+    if (requester.getProps().role !== 'ADMIN') {
+      throw new ValidationError("Only ADMIN can delete members");
+    }
+    if (userId === requesterId) {
+      throw new ValidationError("You cannot delete your own account");
+    }
+
+    const user = await this.userRepo.findById(userId);
+    if (!user) throw new NotFoundError("User", userId);
+
+    const activeTasks = await this.prisma.task.count({
+      where: { ownerId: userId, status: { in: ['TODO', 'DOING'] } },
+    });
+    if (activeTasks > 0) {
+      throw new ValidationError(`Cannot delete user with ${activeTasks} active task(s). Reassign or close them first.`);
+    }
+
+    const managedProjects = await this.prisma.project.count({ where: { managerId: userId } });
+    if (managedProjects > 0) {
+      throw new ValidationError(`Cannot delete user who manages ${managedProjects} project(s). Reassign the projects first.`);
+    }
+
+    await this.userRepo.delete(userId);
   }
 
   public async updateRole(userId: string, dto: UpdateRoleDTO): Promise<User> {

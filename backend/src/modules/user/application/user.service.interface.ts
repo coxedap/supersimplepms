@@ -6,6 +6,7 @@ export interface UserRepository {
   findAll(organizationId: string): Promise<User[]>;
   save(user: User, passwordHash: string): Promise<void>;
   update(user: User): Promise<void>;
+  delete(userId: string): Promise<void>;
 }
 
 export interface UpdateRoleDTO {
@@ -36,6 +37,21 @@ export interface RegisterDTO {
   organizationName: string;
 }
 
+/** ADMIN only: creates an inactive user directly in the org */
+export interface AddMemberDTO {
+  email: string;
+  role: string;
+  organizationId: string;
+  requesterId: string;
+}
+
+/** Inactive user sets their name + password to activate their account */
+export interface SetupPasswordDTO {
+  email: string;
+  name: string;
+  password: string;
+}
+
 /** Creates an invite record and sends an email link — no password set yet */
 export interface InviteMemberDTO {
   email: string;
@@ -61,6 +77,9 @@ export interface UserService {
   getAllUsers(organizationId: string): Promise<User[]>;
   login(dto: LoginDTO): Promise<User>;
   register(dto: RegisterDTO): Promise<User>;
+  addMember(dto: AddMemberDTO): Promise<void>;
+  deleteMember(userId: string, requesterId: string): Promise<void>;
+  setupPassword(dto: SetupPasswordDTO): Promise<import('../domain/user.entity').User>;
   inviteMember(dto: InviteMemberDTO): Promise<void>;
   acceptInvite(dto: AcceptInviteDTO): Promise<User>;
   updateRole(userId: string, dto: UpdateRoleDTO): Promise<User>;

@@ -106,6 +106,23 @@ export function useUpdateUserLimits() {
   });
 }
 
+export function useAddMember() {
+  const qc = useQueryClient();
+  const addToast = useToastStore((state) => state.addToast);
+
+  return useMutation({
+    mutationFn: ({ email, role }: { email: string; role: string }) =>
+      api.post<{ setupUrl: string }>('/users/add', { email, role }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+      addToast('Member added. They can log in and set up their password.', 'success');
+    },
+    onError: (err: any) => {
+      addToast(err?.response?.data?.error ?? 'Failed to add member', 'error');
+    },
+  });
+}
+
 export function useInviteMember() {
   const qc = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
@@ -124,6 +141,22 @@ export function useInviteMember() {
     },
     onError: (err: any) => {
       addToast(err?.response?.data?.error ?? 'Failed to invite member', 'error');
+    },
+  });
+}
+
+export function useDeleteMember() {
+  const qc = useQueryClient();
+  const addToast = useToastStore((state) => state.addToast);
+
+  return useMutation({
+    mutationFn: (userId: string) => api.delete(`/users/${userId}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+      addToast('Member deleted successfully', 'success');
+    },
+    onError: (err: any) => {
+      addToast(err?.response?.data?.error ?? 'Failed to delete member', 'error');
     },
   });
 }

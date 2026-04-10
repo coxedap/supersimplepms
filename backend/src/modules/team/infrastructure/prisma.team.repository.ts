@@ -38,7 +38,7 @@ export class PrismaTeamRepository implements TeamRepository {
       where: { id: props.id },
       data: {
         name: props.name,
-        leaderId: props.leaderId
+        leaderId: props.leaderId ?? null,
       }
     });
   }
