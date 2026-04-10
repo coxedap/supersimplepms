@@ -6,6 +6,20 @@ import { AuthRequest } from "../../../shared/middleware/auth.middleware";
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  public async checkEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        res.status(400).json({ error: 'Email is required' });
+        return;
+      }
+      const user = await this.userService.checkEmail(email);
+      res.json(user);
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({ error: error.message });
+    }
+  }
+
   public async login(req: Request, res: Response): Promise<void> {
     try {
       const { email, password } = req.body;

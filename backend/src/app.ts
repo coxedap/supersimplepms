@@ -62,6 +62,7 @@ app.post('/api/auth/logout', (_req: Request, res: Response) => {
   res.clearCookie('token', { httpOnly: true, sameSite: 'lax' });
   res.json({ message: 'Logged out' });
 });
+app.post('/api/auth/check-email', (req: Request, res: Response) => userController.checkEmail(req, res));
 app.post('/api/auth/invite/accept', (req: Request, res: Response) => userController.acceptInvite(req, res));
 app.post('/api/auth/setup', (req: Request, res: Response) => userController.setupPassword(req, res));
 

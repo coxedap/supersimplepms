@@ -77,6 +77,7 @@ export interface UserService {
   getAllUsers(organizationId: string): Promise<User[]>;
   login(dto: LoginDTO): Promise<User>;
   register(dto: RegisterDTO): Promise<User>;
+  checkEmail(email: string): Promise<{ status: 'active' | 'setup_required' | 'not_found' }>;
   addMember(dto: AddMemberDTO): Promise<void>;
   deleteMember(userId: string, requesterId: string): Promise<void>;
   setupPassword(dto: SetupPasswordDTO): Promise<import('../domain/user.entity').User>;

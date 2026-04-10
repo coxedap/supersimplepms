@@ -37,6 +37,26 @@ export class UserServiceImpl implements UserService {
     return this.userRepo.findAll(organizationId);
   }
 
+  public async checkEmail(email: string): Promise<{ status: 'active' | 'setup_required' | 'not_found' }> {
+    const user = await this.userRepo.findByEmail(email);
+    if (user) {
+      if (user.getProps().status === 'inactive') return { status: 'setup_required' };
+      return { status: 'active' };
+    }
+
+    // Check for a pending invite
+    const invite = await this.prisma.invite.findFirst({
+      where: {
+        email,
+        acceptedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (invite) return { status: 'setup_required' };
+
+    return { status: 'not_found' };
+  }
+
   public async login(dto: LoginDTO): Promise<User> {
     const userWithHash = await this.userRepo.findByEmail(dto.email);
     if (!userWithHash) throw new ValidationError("Invalid email or password");
@@ -123,28 +143,41 @@ export class UserServiceImpl implements UserService {
   }
 
   public async setupPassword(dto: SetupPasswordDTO): Promise<User> {
-    const userWithHash = await this.userRepo.findByEmail(dto.email);
-    if (!userWithHash) throw new ValidationError("No account found for this email");
-    if (userWithHash.getProps().status !== 'inactive') {
-      throw new ValidationError("Account is already set up. Please log in normally.");
-    }
-
     if (dto.password.length < 8) throw new ValidationError("Password must be at least 8 characters");
 
-    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
-    const updatedUser = new User({
-      ...userWithHash.getProps(),
-      name: dto.name,
-      status: 'active',
-    });
+    const existingUser = await this.userRepo.findByEmail(dto.email);
 
-    await this.userRepo.update(updatedUser);
-    await this.prisma.user.update({
-      where: { id: updatedUser.getProps().id },
-      data: { passwordHash },
-    });
+    // Case 1: inactive user created directly by admin
+    if (existingUser && existingUser.getProps().status === 'inactive') {
+      const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+      const updatedUser = new User({ ...existingUser.getProps(), name: dto.name, status: 'active' });
+      await this.userRepo.update(updatedUser);
+      await this.prisma.user.update({ where: { id: updatedUser.getProps().id }, data: { passwordHash } });
+      return updatedUser;
+    }
 
-    return updatedUser;
+    // Case 2: pending invite
+    const invite = await this.prisma.invite.findFirst({
+      where: { email: dto.email, acceptedAt: null, expiresAt: { gt: new Date() } },
+    });
+    if (invite) {
+      const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+      const user = new User({
+        id: crypto.randomUUID(),
+        name: dto.name,
+        email: invite.email,
+        role: invite.role as any,
+        status: 'active',
+        organizationId: invite.organizationId,
+        wipLimit: 3,
+        p1Limit: 1,
+      });
+      await this.userRepo.save(user, passwordHash);
+      await this.prisma.invite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
+      return user;
+    }
+
+    throw new ValidationError("No pending account or invite found for this email");
   }
 
   public async inviteMember(dto: InviteMemberDTO): Promise<void> {
