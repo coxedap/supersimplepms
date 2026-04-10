@@ -26,6 +26,10 @@ export class UserController {
       });
       res.json(props);
     } catch (error: any) {
+      if (error.code === 'REQUIRES_SETUP') {
+        res.status(403).json({ error: error.message, code: 'REQUIRES_SETUP' });
+        return;
+      }
       res.status(error.statusCode || 401).json({ error: error.message });
     }
   }
@@ -61,6 +65,47 @@ export class UserController {
       res.json(users.map((u) => u.getProps()));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  public async addMember(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { email, role } = req.body;
+      if (!email || !role) {
+        res.status(400).json({ error: 'email and role are required' });
+        return;
+      }
+      await this.userService.addMember({
+        email,
+        role,
+        organizationId: req.user!.organizationId,
+        requesterId: req.user!.userId,
+      });
+      res.status(201).json({ message: 'Member added successfully' });
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({ error: error.message });
+    }
+  }
+
+  public async setupPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, name, password } = req.body;
+      if (!email || !name || !password) {
+        res.status(400).json({ error: 'email, name, and password are required' });
+        return;
+      }
+      const user = await this.userService.setupPassword({ email, name, password });
+      const props = user.getProps();
+      const token = signToken({ userId: props.id, role: props.role, organizationId: props.organizationId });
+      res.cookie('token', token, {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        secure: process.env.NODE_ENV === 'production',
+      });
+      res.status(200).json(props);
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({ error: error.message });
     }
   }
 
@@ -140,6 +185,16 @@ export class UserController {
       res.json(user.getProps());
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
+
+  public async deleteMember(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      await this.userService.deleteMember(id, req.user!.userId);
+      res.status(200).json({ message: 'Member deleted successfully' });
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({ error: error.message });
     }
   }
 

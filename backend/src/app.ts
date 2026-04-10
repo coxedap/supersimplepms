@@ -63,6 +63,7 @@ app.post('/api/auth/logout', (_req: Request, res: Response) => {
   res.json({ message: 'Logged out' });
 });
 app.post('/api/auth/invite/accept', (req: Request, res: Response) => userController.acceptInvite(req, res));
+app.post('/api/auth/setup', (req: Request, res: Response) => userController.setupPassword(req, res));
 
 // 404 for unmatched public routes before auth
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -77,11 +78,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(authMiddleware);
 
 app.get('/api/users', (req: AuthRequest, res: Response) => userController.listAll(req, res));
+app.post('/api/users/add', (req: AuthRequest, res: Response) => userController.addMember(req, res));
 app.post('/api/users/invite', (req: AuthRequest, res: Response) => userController.inviteMember(req, res));
 app.patch('/api/users/:id/role', (req: AuthRequest, res: Response) => userController.updateRole(req, res));
 app.patch('/api/users/:id/team', (req: AuthRequest, res: Response) => userController.updateTeam(req, res));
 app.patch('/api/users/:id/limits', (req: AuthRequest, res: Response) => userController.updateLimits(req, res));
 app.patch('/api/users/:id/status', (req: AuthRequest, res: Response) => userController.updateStatus(req, res));
+app.delete('/api/users/:id', (req: AuthRequest, res: Response) => userController.deleteMember(req, res));
 
 // Project Routes
 app.post('/api/projects', (req: AuthRequest, res: Response) => projectController.create(req, res));

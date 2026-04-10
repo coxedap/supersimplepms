@@ -22,6 +22,7 @@ export const TeamsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState<ManagingTeam | null>(null);
   const [managingTeam, setManagingTeam] = useState<ManagingTeam | null>(null);
+  const [viewingTeam, setViewingTeam] = useState<ManagingTeam | null>(null);
 
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamLeaderId, setNewTeamLeaderId] = useState('');
@@ -38,16 +39,7 @@ export const TeamsPage: React.FC = () => {
     currentUser?.role === 'MANAGER' ||
     currentUser?.role === 'TEAM_LEAD';
 
-  if (!currentUser || currentUser.role === 'CONTRIBUTOR') {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h3 className="font-bold text-red-900">Access Denied</h3>
-          <p className="text-red-700 text-sm">You do not have permission to view teams.</p>
-        </div>
-      </div>
-    );
-  }
+  if (!currentUser) return null;
 
   const handleCreateTeam = async () => {
     if (!newTeamName.trim() || !currentUser) return;
@@ -111,6 +103,12 @@ export const TeamsPage: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-8">
+          {currentUser.role === 'CONTRIBUTOR' && !currentUser.teamId && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-semibold text-yellow-800">You are not assigned to any team yet.</p>
+              <p className="text-sm text-yellow-700 mt-0.5">Contact your manager or admin to get added to a team.</p>
+            </div>
+          )}
           <header className="mb-8 flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-black text-gray-900 tracking-tight">Teams</h1>
@@ -180,10 +178,16 @@ export const TeamsPage: React.FC = () => {
                           {new Date(team.createdAt).toLocaleDateString()}
                         </td>
                         <td className="py-3 px-4 flex gap-2">
+                          <button
+                            onClick={() => setViewingTeam({ id: team.id, name: team.name, leaderId: team.leaderId })}
+                            className="px-3 py-1 bg-gray-50 text-gray-600 rounded-lg font-bold hover:bg-gray-100 transition-colors text-xs"
+                          >
+                            View
+                          </button>
                           {canEdit && (
                             <button
                               onClick={() => openEdit({ id: team.id, name: team.name, leaderId: team.leaderId })}
-                              className="px-3 py-1 bg-gray-50 text-gray-600 rounded-lg font-bold hover:bg-gray-100 transition-colors text-xs"
+                              className="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-lg font-bold hover:bg-yellow-100 transition-colors text-xs"
                             >
                               Edit
                             </button>
@@ -209,6 +213,42 @@ export const TeamsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* View Members Modal (read-only, all roles) */}
+      {viewingTeam && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-lg font-black text-gray-900">{viewingTeam.name}</h2>
+              <button onClick={() => setViewingTeam(null)} className="text-gray-400 hover:text-gray-600 transition-colors">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Team Lead</p>
+                <p className="text-sm text-gray-900">{getLeaderName(viewingTeam.leaderId)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Members</p>
+                {getTeamMembers(viewingTeam.id).length === 0 ? (
+                  <p className="text-sm text-gray-400">No members yet.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {getTeamMembers(viewingTeam.id).map((m) => (
+                      <div key={m.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-900">{m.name}</span>
+                        <span className="text-xs text-gray-500 uppercase tracking-wide">{m.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end p-6 border-t border-gray-100">
+              <button onClick={() => setViewingTeam(null)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Team Modal */}
       {showCreateModal && (

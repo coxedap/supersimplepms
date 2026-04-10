@@ -8,8 +8,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const canAccessUserManagement = user && (user.role === 'MANAGER' || user.role === 'ADMIN');
-  const canAccessTeams = user && user.role !== 'CONTRIBUTOR';
-  const canAccessProjects = user && user.role !== 'CONTRIBUTOR';
+  const canAccessTeams = !!user;
+  const canAccessProjects = !!user;
   const canViewTeamHealth = user && (user.role === 'ADMIN' || user.role === 'MANAGER');
 
   // Determine current section based on URL path

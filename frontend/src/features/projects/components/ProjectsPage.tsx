@@ -35,16 +35,7 @@ export const ProjectsPage: React.FC = () => {
 
   const canCreate = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
-  if (!currentUser || currentUser.role === 'CONTRIBUTOR') {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h3 className="font-bold text-red-900">Access Denied</h3>
-          <p className="text-red-700 text-sm">You do not have permission to view projects.</p>
-        </div>
-      </div>
-    );
-  }
+  if (!currentUser) return null;
 
   const getManagerName = (managerId: string) =>
     users?.find((u) => u.id === managerId)?.name ?? managerId;
